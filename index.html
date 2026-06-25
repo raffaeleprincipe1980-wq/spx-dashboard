@@ -156,9 +156,57 @@ button.primary:hover{background:#2d3748}
 .live-error{color:var(--red)}
 .live-error::before{background:var(--red)}
 
+
+#pwd-gate{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:#0f1117;
+  display:flex;align-items:center;justify-content:center;
+  z-index:99999;
+}
+.pwd-box{
+  background:#1a1f2e;
+  border:0.5px solid #2a3347;
+  border-radius:12px;
+  padding:40px 48px;
+  text-align:center;
+  width:360px;
+}
+.pwd-title{font-size:18px;font-weight:600;color:#f1f5f9;margin-bottom:6px}
+.pwd-sub{font-size:12px;color:#64748b;margin-bottom:28px}
+.pwd-input{
+  width:100%;background:#0f1117;border:0.5px solid #334155;
+  border-radius:6px;color:#f1f5f9;padding:10px 14px;
+  font-size:15px;font-family:inherit;text-align:center;
+  letter-spacing:2px;margin-bottom:14px;outline:none;
+}
+.pwd-input:focus{border-color:#38bdf8}
+.pwd-btn{
+  width:100%;background:#1e3a5f;border:0.5px solid #38bdf8;
+  border-radius:6px;color:#38bdf8;padding:10px;
+  font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;
+  transition:background .15s;
+}
+.pwd-btn:hover{background:#0c2340}
+.pwd-error{font-size:12px;color:#f87171;margin-top:10px;min-height:18px}
+.pwd-logo{font-size:28px;margin-bottom:16px}
+
 </style>
 </head>
 <body>
+
+<div id="pwd-gate">
+  <div class="pwd-box">
+    <div class="pwd-logo">📊</div>
+    <div class="pwd-title">SPX Put Spread Dashboard</div>
+    <div class="pwd-sub">Enter password to continue</div>
+    <input type="password" id="pwd-input" class="pwd-input" 
+           placeholder="••••••••••" 
+           onkeydown="if(event.key==='Enter')checkPassword()">
+    <button class="pwd-btn" onclick="checkPassword()">Unlock dashboard</button>
+    <div class="pwd-error" id="pwd-error"></div>
+  </div>
+</div>
+
 <div class="dash">
 
 <div class="top-bar">
@@ -1834,7 +1882,7 @@ function cancelClose(){
 
 
 // ========== LIVE MARKET DATA — Twelve Data ==========
-const TD_KEY = 'fc70cccae60041108fcc352475b11d9b';
+const TD_KEY = '908d3af3fc0a4c28ad2f8e51bb33787d';
 const TD_BASE = 'https://api.twelvedata.com';
 let liveDataInterval = null;
 let lastFetchTime = null;
@@ -1970,6 +2018,61 @@ function manualRefresh(){
   setTimeout(fetchQuoteData, 800);
 }
 
+
+// ========== PASSWORD GATE ==========
+const PWD_HASH = '989a56b5484a2bff3f812904778b5965e6f544fd5250bfcac57afc488eaf50f1';
+
+function sha256(str){
+  // Simple async SHA-256 using Web Crypto API
+  const buf = new TextEncoder().encode(str);
+  return crypto.subtle.digest('SHA-256', buf).then(b=>{
+    return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+  });
+}
+
+async function checkPassword(){
+  const input = document.getElementById('pwd-input');
+  const errorEl = document.getElementById('pwd-error');
+  const btn = document.querySelector('.pwd-btn');
+  if(!input) return;
+
+  btn.textContent = 'Checking...';
+  btn.disabled = true;
+
+  const hash = await sha256(input.value);
+  if(hash === PWD_HASH){
+    // Correct — store session and hide gate
+    sessionStorage.setItem('spx_auth', '1');
+    const gate = document.getElementById('pwd-gate');
+    gate.style.opacity='0';
+    gate.style.transition='opacity 0.3s';
+    setTimeout(()=>gate.remove(), 300);
+  } else {
+    errorEl.textContent = 'Incorrect password — please try again';
+    input.value = '';
+    input.focus();
+    btn.textContent = 'Unlock dashboard';
+    btn.disabled = false;
+    // Shake animation
+    input.style.borderColor='#f87171';
+    setTimeout(()=>input.style.borderColor='#334155', 1500);
+  }
+}
+
+function initPasswordGate(){
+  // If already authenticated this session, skip
+  if(sessionStorage.getItem('spx_auth')==='1'){
+    const gate = document.getElementById('pwd-gate');
+    if(gate) gate.remove();
+    return;
+  }
+  // Focus input
+  setTimeout(()=>{
+    const input = document.getElementById('pwd-input');
+    if(input) input.focus();
+  }, 100);
+}
+
 // Init
 document.getElementById('date-label').textContent=today();
 initCharts();
@@ -1987,10 +2090,12 @@ function initCloseTradePanel(){
 }
 // Run after full page load
 if(document.readyState==='complete'){
+  initPasswordGate();
   initCloseTradePanel();
   startLiveData();
 } else {
   window.addEventListener('load', ()=>{
+    initPasswordGate();
     initCloseTradePanel();
     startLiveData();
   });
