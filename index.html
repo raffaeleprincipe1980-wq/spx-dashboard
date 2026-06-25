@@ -1,0 +1,2121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPX Put Spread Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#1a1f2e;--bg3:#1e2433;--bg4:#252d3d;
+  --border:#2a3347;--border2:#334155;
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --green:#4ade80;--green3:#166534;--greenbg:#052e16;
+  --red:#f87171;--redbg:#2d0a0a;
+  --blue:#38bdf8;--bluebg:#0c2340;
+  --yellow:#facc15;--yellowbg:#1c1500;
+  --purple:#a78bfa;--purplebg:#1e1440;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.4}
+.dash{max-width:1140px;margin:0 auto;padding:18px 20px}
+.top-bar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.dash-title{font-size:18px;font-weight:600;color:var(--text)}
+.dash-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.live-dot{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--blue);background:var(--bluebg);padding:3px 10px;border-radius:4px;border:0.5px solid #1e3a5f}
+.live-dot::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--blue);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.ticker-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.ticker{background:var(--bg3);border:0.5px solid var(--border);border-radius:6px;padding:10px 14px;flex:1;min-width:90px}
+.ticker-regime{flex:2.5}
+.ticker-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.ticker-val{font-size:15px;font-weight:600;color:var(--text)}
+.ticker-sub{font-size:10px;color:var(--text3);margin-top:3px}
+.regime-val{font-size:12px;font-weight:500}
+.ticker input{background:none;border:none;color:inherit;font-size:inherit;font-weight:inherit;font-family:inherit;width:100%;outline:none;padding:0}
+
+/* Account bar */
+.account-bar{display:grid;grid-template-columns:repeat(4,1fr) 1.5fr;gap:8px;margin-bottom:12px}
+.acc-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px 14px}
+.acc-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.acc-val{font-size:18px;font-weight:600}
+.acc-sub{font-size:10px;color:var(--text3);margin-top:3px}
+.acc-input-wrap{display:flex;align-items:center;gap:6px}
+.acc-input-wrap span{font-size:15px;font-weight:600;color:var(--text)}
+.acc-input-wrap input{background:none;border:none;color:var(--text);font-size:15px;font-weight:600;font-family:inherit;width:90px;outline:none;padding:0}
+.target-bar{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.target-row{display:flex;justify-content:space-between;align-items:center;font-size:11px}
+.target-label{color:var(--text3)}
+.tbar{height:5px;background:var(--border2);border-radius:3px;margin-top:4px;overflow:hidden}
+.tbar-fill{height:100%;border-radius:3px;transition:width .4s}
+
+.metrics-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px}
+.metric{background:var(--bg3);border:0.5px solid var(--border);border-radius:6px;padding:10px 12px}
+.metric-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.metric-val{font-size:18px;font-weight:600}
+.metric-sub{font-size:10px;color:var(--text3);margin-top:4px}
+.nav{display:flex;border-bottom:1px solid var(--border);margin-bottom:16px}
+.nav-btn{font-size:12px;padding:8px 16px;background:none;border:none;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s;font-family:inherit}
+.nav-btn:hover{color:var(--text2)}
+.nav-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab{display:none}
+.tab.active{display:block}
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:12px}
+.card-title{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
+.chart-wrap{position:relative;width:100%}
+.badge{display:inline-block;font-size:10px;font-weight:500;padding:2px 8px;border-radius:4px}
+.badge-green{background:var(--greenbg);color:var(--green);border:0.5px solid var(--green3)}
+.badge-red{background:var(--redbg);color:var(--red)}
+.badge-blue{background:var(--bluebg);color:var(--blue)}
+.badge-yellow{background:var(--yellowbg);color:var(--yellow)}
+.badge-gray{background:var(--bg4);color:var(--text2)}
+.badge-purple{background:var(--purplebg);color:var(--purple)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.trade-header{display:grid;grid-template-columns:75px 1fr 55px 95px 95px 120px;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.trade-row{display:grid;grid-template-columns:75px 1fr 55px 95px 95px 120px;gap:8px;padding:12px 0;border-bottom:0.5px solid var(--border);align-items:start}
+.trade-row:last-child{border-bottom:none}
+.pbar{height:4px;background:var(--border2);border-radius:2px;margin-top:5px;overflow:hidden;width:110px}
+.pbar-fill{height:100%;border-radius:2px;transition:width .3s}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.form-grid label{font-size:11px;color:var(--text3);display:block;margin-bottom:5px}
+.form-grid input,.form-grid select{width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:5px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit}
+.form-grid input:focus{outline:none;border-color:var(--blue)}
+input[type=range]{width:100%;accent-color:var(--blue);cursor:pointer}
+.roll-out{background:var(--bg3);border:0.5px solid var(--border);border-radius:6px;padding:12px 14px;margin-top:12px}
+.roll-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px;color:var(--text2)}
+.roll-row:last-child{border-bottom:none;font-weight:600;color:var(--text)}
+.slider-wrap{margin-bottom:14px}
+.slider-label{font-size:11px;color:var(--text3);margin-bottom:7px}
+.slider-row{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:4px}
+button.primary{width:100%;background:var(--bg4);border:0.5px solid var(--border2);border-radius:6px;color:var(--text);padding:9px;font-size:13px;cursor:pointer;transition:background .15s;font-family:inherit}
+button.primary:hover{background:#2d3748}
+.entry-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);font-size:12px}
+.entry-row:last-child{border-bottom:none}
+.stat-table{width:100%;font-size:12px;border-collapse:collapse}
+.stat-table td{padding:7px 0;border-bottom:0.5px solid var(--border);color:var(--text2)}
+.stat-table td:last-child{text-align:right;color:var(--text)}
+.stat-table tr:last-child td{border-bottom:none}
+.info-box{background:var(--bg3);border:0.5px solid var(--border);border-radius:6px;padding:10px 12px;font-size:11px;color:var(--text3);margin-bottom:12px}
+.divider{height:0.5px;background:var(--border);margin:12px 0}
+
+.chk-block{padding:10px 0}
+.chk-row{display:flex;align-items:flex-start;gap:10px}
+.chk-row input[type=checkbox]{width:16px;height:16px;margin-top:2px;flex-shrink:0;accent-color:var(--green);cursor:pointer}
+.chk-label{display:flex;flex-direction:column;gap:2px;cursor:pointer;flex:1}
+.chk-title{font-size:13px;font-weight:500;color:var(--text)}
+.chk-desc{font-size:11px;color:var(--text3);line-height:1.4}
+.chk-inputs{display:flex;gap:10px;margin-top:8px;margin-left:26px;flex-wrap:wrap;align-items:center}
+.chk-inputs input{width:110px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:5px;color:var(--text);padding:5px 8px;font-size:12px;font-family:inherit}
+.chk-inputs input:focus{outline:none;border-color:var(--blue)}
+.chk-input-label{font-size:10px;color:var(--text3);display:block;margin-bottom:3px}
+.chk-divider{height:0.5px;background:var(--border);margin:2px 0}
+.chk-block.pass .chk-title{color:var(--green)}
+.chk-block.fail .chk-title{color:var(--text)}
+.chk-block.checked .chk-title{color:var(--green)}
+
+
+.log-table{width:100%;border-collapse:collapse;font-size:12px}
+.log-table th{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-bottom:1px solid var(--border);text-align:left;font-weight:500}
+.log-table td{padding:8px;border-bottom:0.5px solid var(--border);color:var(--text2);vertical-align:top}
+.log-table tr:last-child td{border-bottom:none}
+.log-table tr:hover td{background:var(--bg3)}
+.log-input{background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);padding:4px 7px;font-size:12px;font-family:inherit;width:100%}
+.log-input:focus{outline:none;border-color:var(--blue)}
+.log-select{background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);padding:4px 7px;font-size:12px;font-family:inherit;width:100%}
+.log-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}
+
+
+.macro-event{display:grid;grid-template-columns:80px 40px 1fr 90px 80px 80px;gap:8px;padding:10px 0;border-bottom:0.5px solid var(--border);align-items:start;font-size:12px}
+.macro-event:last-child{border-bottom:none}
+.macro-header{display:grid;grid-template-columns:80px 40px 1fr 90px 80px 80px;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.impact-high{color:var(--red);font-weight:600}
+.impact-med{color:var(--yellow);font-weight:500}
+.impact-low{color:var(--text3)}
+.impact-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;margin-top:3px}
+.dot-high{background:var(--red)}
+.dot-med{background:var(--yellow)}
+.dot-low{background:var(--text3)}
+.commentary-block{background:var(--bg3);border-radius:6px;padding:14px 16px;font-size:12px;color:var(--text2);line-height:1.7}
+.commentary-block strong{color:var(--text)}
+.macro-skeleton{background:var(--bg3);border-radius:4px;height:14px;margin:6px 0;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{opacity:.4}50%{opacity:.8}100%{opacity:.4}}
+.refresh-btn{background:var(--bg4);border:0.5px solid var(--border2);border-radius:5px;color:var(--blue);padding:5px 14px;font-size:11px;cursor:pointer;font-family:inherit;transition:background .15s}
+.refresh-btn:hover{background:var(--bg3)}
+.refresh-btn:disabled{color:var(--text3);cursor:not-allowed}
+.stance-badge{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:6px 14px;border-radius:6px;margin-bottom:12px}
+.stance-caution{background:#2d1a00;color:var(--yellow);border:0.5px solid #7a4a00}
+.stance-normal{background:var(--bluebg);color:var(--blue);border:0.5px solid #1e3a5f}
+.stance-favorable{background:var(--greenbg);color:var(--green);border:0.5px solid var(--green3)}
+.stance-avoid{background:var(--redbg);color:var(--red);border:0.5px solid #7a1a1a}
+
+
+.live-indicator{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--green)}
+.live-indicator::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+.live-stale{color:var(--yellow)}
+.live-stale::before{background:var(--yellow)}
+.live-error{color:var(--red)}
+.live-error::before{background:var(--red)}
+
+
+#pwd-gate{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:#0f1117;
+  display:flex;align-items:center;justify-content:center;
+  z-index:99999;
+}
+.pwd-box{
+  background:#1a1f2e;
+  border:0.5px solid #2a3347;
+  border-radius:12px;
+  padding:40px 48px;
+  text-align:center;
+  width:360px;
+}
+.pwd-title{font-size:18px;font-weight:600;color:#f1f5f9;margin-bottom:6px}
+.pwd-sub{font-size:12px;color:#64748b;margin-bottom:28px}
+.pwd-input{
+  width:100%;background:#0f1117;border:0.5px solid #334155;
+  border-radius:6px;color:#f1f5f9;padding:10px 14px;
+  font-size:15px;font-family:inherit;text-align:center;
+  letter-spacing:2px;margin-bottom:14px;outline:none;
+}
+.pwd-input:focus{border-color:#38bdf8}
+.pwd-btn{
+  width:100%;background:#1e3a5f;border:0.5px solid #38bdf8;
+  border-radius:6px;color:#38bdf8;padding:10px;
+  font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;
+  transition:background .15s;
+}
+.pwd-btn:hover{background:#0c2340}
+.pwd-error{font-size:12px;color:#f87171;margin-top:10px;min-height:18px}
+.pwd-logo{font-size:28px;margin-bottom:16px}
+
+</style>
+</head>
+<body>
+
+<div id="pwd-gate">
+  <div class="pwd-box">
+    <div class="pwd-logo">📊</div>
+    <div class="pwd-title">SPX Put Spread Dashboard</div>
+    <div class="pwd-sub">Enter password to continue</div>
+    <input type="password" id="pwd-input" class="pwd-input" 
+           placeholder="••••••••••" 
+           onkeydown="if(event.key==='Enter')checkPassword()">
+    <button class="pwd-btn" onclick="checkPassword()">Unlock dashboard</button>
+    <div class="pwd-error" id="pwd-error"></div>
+  </div>
+</div>
+
+<div class="dash">
+
+<div class="top-bar">
+  <div>
+    <div class="dash-title">SPX put spread dashboard</div>
+    <div class="dash-sub">Bull put spread strategy · SPXW / SPX weekly options · Raffaele</div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+    <span class="live-dot">Live session</span>
+    <span style="font-size:10px;color:var(--text3)" id="date-label"></span>
+    <span class="live-indicator" id="live-status" style="margin-left:8px">Connecting...</span>
+  </div>
+</div>
+
+<!-- MARKET INPUTS -->
+<div class="ticker-bar">
+  <div class="ticker">
+    <div class="ticker-label">SPX</div>
+    <div class="ticker-val"><input type="number" id="inp-spx" value="7430" oninput="onMarketUpdate()" title="Auto-updated every 60s · edit to override"></div>
+  </div>
+  <div class="ticker">
+    <div class="ticker-label">VIX</div>
+    <div class="ticker-val" style="color:var(--yellow)"><input type="number" id="inp-vix" value="17.7" step="0.1" oninput="onMarketUpdate()" title="Auto-updated every 60s · edit to override"></div>
+  </div>
+  <div class="ticker">
+    <div class="ticker-label">ES Futures</div>
+    <div class="ticker-val"><input type="number" id="inp-es" value="7521" oninput="onMarketUpdate()" title="Auto-updated every 60s · edit to override"></div>
+  </div>
+  <div style="display:flex;align-items:center">
+    <button onclick="manualRefresh()" title="Refresh live data" style="background:var(--bg3);border:0.5px solid var(--border);border-radius:5px;color:var(--blue);padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap">↻ Refresh</button>
+  </div>
+  <div class="ticker ticker-regime">
+    <div class="ticker-label">Market regime</div>
+    <div class="regime-val" id="regime-val" style="color:var(--blue)">Normal — enter on red swings, DTE 60–120</div>
+    <div class="ticker-sub" id="regime-sub">VIX 15–18 range</div>
+  </div>
+</div>
+
+<!-- ACCOUNT OVERVIEW BAR -->
+<div class="account-bar" style="grid-template-columns:repeat(5,1fr) 1.6fr">
+  <div class="acc-card">
+    <div class="acc-label">Net Liq. Value</div>
+    <div class="acc-input-wrap"><span>$</span><input type="number" id="inp-account" value="117392" oninput="renderAccountBar()" style="width:100px"></div>
+    <div class="acc-sub">IBKR · update daily</div>
+  </div>
+  <div class="acc-card">
+    <div class="acc-label">Excess liquidity</div>
+    <div class="acc-val" style="color:var(--green)">$99,306</div>
+    <div class="acc-sub">Excess liquidity</div>
+  </div>
+  <div class="acc-card">
+    <div class="acc-label">MTD interest</div>
+    <div class="acc-val" style="color:var(--green)">$214</div>
+    <div class="acc-sub">MTD interest (resets monthly)</div>
+  </div>
+  <div class="acc-card">
+    <div class="acc-label">Deployed margin</div>
+    <div class="acc-val" id="ab-deployed" style="color:var(--blue)">$20,000</div>
+    <div class="acc-sub" id="ab-utilization">17.1% of NLV</div>
+  </div>
+  <div class="acc-card">
+    <div class="acc-label">Account return (YTD)</div>
+    <div class="acc-val" id="ab-acct-return" style="color:var(--green)">6.5%</div>
+    <div class="acc-sub">vs 20% annual target</div>
+  </div>
+  <div class="acc-card">
+    <div class="acc-label">Target progress</div>
+    <div class="target-bar">
+      <div>
+        <div class="target-row"><span class="target-label">20% acct target</span><span id="ab-acct-pct" style="color:var(--green);font-weight:600">—</span></div>
+        <div class="tbar"><div class="tbar-fill" id="ab-acct-bar" style="background:var(--green);width:0%"></div></div>
+      </div>
+      <div>
+        <div class="target-row"><span class="target-label">vs S&P 10%</span><span style="color:var(--blue);font-weight:600" id="ab-sp-pct">—</span></div>
+        <div class="tbar"><div class="tbar-fill" id="ab-sp-bar" style="background:var(--blue);width:0%"></div></div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:6px" id="ab-pace"></div>
+  </div>
+</div>
+
+<!-- TRADE METRICS -->
+<div class="metrics-grid">
+  <div class="metric"><div class="metric-label">Total P&L</div><div class="metric-val" style="color:var(--green)">$7,565</div><div class="metric-sub">42 closed trades</div></div>
+  <div class="metric"><div class="metric-label">Win rate</div><div class="metric-val">92.5%</div><div class="metric-sub">roll-adjusted</div></div>
+  <div class="metric"><div class="metric-label">Avg P&L / trade</div><div class="metric-val">$194</div><div class="metric-sub">39 eff. trades</div></div>
+  <div class="metric"><div class="metric-label">Avg hold time</div><div class="metric-val">12d</div><div class="metric-sub">per eff. trade</div></div>
+  <div class="metric"><div class="metric-label">30% trade target</div><div class="metric-val" style="color:var(--green)">On track</div><div class="metric-sub">per deployed margin</div></div>
+  <div class="metric"><div class="metric-label">vs risk-free 4.75%</div><div class="metric-val" style="color:var(--green)">+$7,090</div><div class="metric-sub">excess return YTD</div></div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="showTab('overview',this)">Overview</button>
+  <button class="nav-btn" onclick="showTab('open',this)">Open trades</button>
+  <button class="nav-btn" onclick="showTab('history',this)">Performance</button>
+  <button class="nav-btn" onclick="showTab('roll',this)">Roll calculator</button>
+  <button class="nav-btn" onclick="showTab('entry',this)">New trade</button>
+  <button class="nav-btn" onclick="showTab('signal',this)">Entry signal</button>
+  <button class="nav-btn" onclick="showTab('macro',this)">Macro calendar</button>
+</div>
+
+<!-- OVERVIEW TAB -->
+<div id="tab-overview" class="tab active">
+  <div class="card">
+    <div class="card-title">Cumulative P&L</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="c-cum"></canvas></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Monthly P&L</div>
+      <div class="chart-wrap" style="height:180px"><canvas id="c-monthly"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">P&L distribution</div>
+      <div class="chart-wrap" style="height:180px"><canvas id="c-dist"></canvas></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Strategy snapshot</div>
+      <table class="stat-table">
+        <tr><td>Strategy</td><td>Bull put spread (credit)</td></tr>
+        <tr><td>Underlying</td><td>SPX / SPXW</td></tr>
+        <tr><td>Spread width</td><td>100 pts</td></tr>
+        <tr><td>Max gain</td><td>$1,000 / contract</td></tr>
+        <tr><td>Max risk</td><td>$9,000 / contract</td></tr>
+        <tr><td>Target DTE at entry</td><td>45–180 days</td></tr>
+        <tr><td>Per-trade return target</td><td>30% on $10K margin</td></tr>
+        <tr><td>Account return target</td><td>20% on total capital</td></tr>
+        <tr><td>Risk-free hurdle (Dubai FD)</td><td>4.75%</td></tr>
+        <tr><td>Passive benchmark (S&P500)</td><td>~10% annualized</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Return hierarchy</div>
+      <div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">
+        <div style="background:var(--bg3);border-radius:6px;padding:10px 12px;border-left:3px solid var(--text3)">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Floor</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text)">4.75%</div>
+          <div style="font-size:11px;color:var(--text3)">Dubai fixed deposit — risk free</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:6px;padding:10px 12px;border-left:3px solid var(--blue)">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Benchmark</div>
+          <div style="font-size:15px;font-weight:600;color:var(--blue)">~10%</div>
+          <div style="font-size:11px;color:var(--text3)">S&P500 / Global ETF — passive</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:6px;padding:10px 12px;border-left:3px solid var(--purple)">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Account target</div>
+          <div style="font-size:15px;font-weight:600;color:var(--purple)">20%</div>
+          <div style="font-size:11px;color:var(--text3)">On total IBKR capital — 2× S&P</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:6px;padding:10px 12px;border-left:3px solid var(--green)">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Per-trade target</div>
+          <div style="font-size:15px;font-weight:600;color:var(--green)">30%</div>
+          <div style="font-size:11px;color:var(--text3)">On deployed margin — funds idle time & risk</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPEN TRADES TAB -->
+<div id="tab-open" class="tab">
+  <div class="info-box">Enter current debit to close for each position. <strong style="color:var(--text2)">Exit signal</strong> fires when P&amp;L ≥ 30% annualized target prorated by days held. Target debit recalculates daily from entry date.</div>
+  <div class="card">
+    <div class="trade-header">
+      <span>Cycle</span><span>Spread</span><span>Days</span><span>Current debit $</span><span>Target debit $</span><span>Status</span>
+    </div>
+    <div id="open-trades-list"></div>
+  </div>
+
+  <!-- EXIT TARGET CURVE -->
+  <div class="card">
+    <div class="card-title">Exit target curve — debit to close vs days held</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:10px">The blue line shows the maximum debit you should pay to exit and still hit your 30% annualized target. The longer you hold, the higher debit is acceptable. Your current positions are marked.</div>
+    <div class="chart-wrap" style="height:220px"><canvas id="c-exit-curve"></canvas></div>
+    <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;flex-wrap:wrap">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:20px;height:2px;background:#38bdf8;display:inline-block"></span> C0043 target debit</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:20px;height:2px;background:#a78bfa;display:inline-block"></span> C0044 target debit</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block"></span> Exit zone (hold &amp; let theta work)</span>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY TAB -->
+<div id="tab-history" class="tab">
+  <div class="metrics-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="metric"><div class="metric-label">Best trade</div><div class="metric-val" style="color:var(--green)">$904</div><div class="metric-sub">C0009 · 54 days</div></div>
+    <div class="metric"><div class="metric-label">Worst outcome</div><div class="metric-val" style="color:var(--red)">−$175</div><div class="metric-sub">R0002 · controlled</div></div>
+    <div class="metric"><div class="metric-label">Max drawdown</div><div class="metric-val" style="color:var(--red)">−$1,683</div><div class="metric-sub">Nov 2025 roll period</div></div>
+    <div class="metric"><div class="metric-label">Ann. when invested</div><div class="metric-val" style="color:var(--blue)">~192%</div><div class="metric-sub">trade-level avg</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">All effective trades — individual P&L</div>
+    <div class="chart-wrap" style="height:220px"><canvas id="c-bars"></canvas></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Performance bands</div>
+      <div id="perf-bands"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Key statistics</div>
+      <table class="stat-table">
+        <tr><td>Total effective trades</td><td>40</td></tr>
+        <tr><td>Winners</td><td style="color:var(--green)">37</td></tr>
+        <tr><td>Near breakeven (&lt;$50 loss)</td><td style="color:var(--text2)">2</td></tr>
+        <tr><td>Controlled losses</td><td style="color:var(--red)">1</td></tr>
+        <tr><td>Avg days held</td><td>12.0</td></tr>
+        <tr><td>Avg annualized return</td><td style="color:var(--blue)">~192%</td></tr>
+        <tr><td>Total realized P&L</td><td style="color:var(--green)">$7,565</td></tr>
+        <tr><td>Excess vs 4.75% risk-free</td><td style="color:var(--green)">+$7,193</td></tr>
+        <tr><td>Excess vs 10% S&P500</td><td style="color:var(--blue)" id="h-sp-excess">—</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ROLL CALCULATOR TAB -->
+<div id="tab-roll" class="tab">
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Current position</div>
+      <div class="form-grid">
+        <div><label>Short strike</label><input type="number" id="r-short" value="6550"></div>
+        <div><label>Long strike</label><input type="number" id="r-long" value="6450"></div>
+        <div><label>Original credit ($)</label><input type="number" id="r-credit" value="10.00" step="0.25"></div>
+        <div><label>Current debit to close ($)</label><input type="number" id="r-debit" value="18.00" step="0.25"></div>
+        <div><label>DTE remaining</label><input type="number" id="r-dte" value="30"></div>
+        <div><label>Days held so far</label><input type="number" id="r-days" value="12"></div>
+      </div>
+      <div class="card-title">Roll target</div>
+      <div class="slider-wrap">
+        <div class="slider-label">New short strike — <span id="r-ns-val" style="color:var(--blue);font-weight:600">6400</span></div>
+        <input type="range" min="5500" max="7200" step="25" value="6400" id="r-ns" oninput="document.getElementById('r-ns-val').textContent=this.value">
+        <div class="slider-row"><span>5500</span><span>7200</span></div>
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-label">New DTE — <span id="r-nd-val" style="color:var(--blue);font-weight:600">90</span> days</div>
+        <input type="range" min="30" max="180" step="5" value="90" id="r-nd" oninput="document.getElementById('r-nd-val').textContent=this.value+'d'">
+        <div class="slider-row"><span>30d</span><span>180d</span></div>
+      </div>
+      <button class="primary" onclick="calcRoll()">Calculate roll scenario</button>
+      <div id="roll-out"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Roll decision guide</div>
+      <table class="stat-table">
+        <tr><td>Roll when debit ≥ credit × 1.5</td><td><span class="badge badge-yellow">Defense trigger</span></td></tr>
+        <tr><td>Roll to same width, lower strikes</td><td><span class="badge badge-blue">Strike roll</span></td></tr>
+        <tr><td>Roll to same strikes, further expiry</td><td><span class="badge badge-blue">Time roll</span></td></tr>
+        <tr><td>Close if debit &gt; 3× original credit</td><td><span class="badge badge-red">Cut loss</span></td></tr>
+        <tr><td>Your max roll loss (historical)</td><td style="color:var(--red)">−$175 (R0002)</td></tr>
+        <tr><td>Max theoretical loss</td><td style="color:var(--text3)">−$9,000</td></tr>
+      </table>
+      <div class="info-box" style="margin-top:12px">New credit estimates are indicative only. Always verify actual quotes in IBKR before executing any roll.</div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW TRADE TAB -->
+<div id="tab-entry" class="tab">
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Add new trade</div>
+      <div class="form-grid">
+        <div><label>Expiry (e.g. 30SEP26)</label><input type="text" id="n-exp" placeholder="30SEP26"></div>
+        <div><label>Short strike</label><input type="number" id="n-short" value="6500"></div>
+        <div><label>Long strike</label><input type="number" id="n-long" value="6400"></div>
+        <div><label>Credit received ($)</label><input type="number" id="n-credit" value="10.00" step="0.25"></div>
+        <div><label>DTE at entry</label><input type="number" id="n-dte" value="45" oninput="renderEntryConditions()"></div>
+        <div><label>Commission ($)</label><input type="number" id="n-comm" value="3.28"></div>
+      </div>
+      <button class="primary" onclick="addTrade()">Add to open trades</button>
+      <div id="add-msg" style="margin-top:10px;font-size:12px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Entry conditions check</div>
+      <div id="entry-conditions"></div>
+      <div style="margin-top:14px;padding:10px 12px;background:var(--bg3);border-radius:6px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Min credit required</div>
+        <div style="font-size:22px;font-weight:600;color:var(--blue)" id="min-credit-val">—</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">for 30% ann. target at entered DTE</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ENTRY SIGNAL TAB -->
+<div id="tab-signal" class="tab">
+
+  <!-- LIVE MARKET SNAPSHOT -->
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px">
+    <div class="acc-card">
+      <div class="acc-label">SPX level</div>
+      <div class="acc-val" id="sig-spx" style="color:var(--text)">—</div>
+      <div class="acc-sub" id="sig-spx-chg">from market inputs</div>
+    </div>
+    <div class="acc-card">
+      <div class="acc-label">SPX day change</div>
+      <div class="acc-val" id="sig-spx-pct">—</div>
+      <div class="acc-sub">drop from ES day high</div>
+    </div>
+    <div class="acc-card">
+      <div class="acc-label">VIX level</div>
+      <div class="acc-val" id="sig-vix" style="color:var(--yellow)">—</div>
+      <div class="acc-sub" id="sig-vix-regime">from market inputs</div>
+    </div>
+    <div class="acc-card">
+      <div class="acc-label">VIX day change</div>
+      <div class="acc-val" id="sig-vix-chg-val">—</div>
+      <div class="acc-sub">vs VIX day open</div>
+    </div>
+    <div class="acc-card">
+      <div class="acc-label">Signal status</div>
+      <div class="acc-val" id="sig-status" style="font-size:14px">—</div>
+      <div class="acc-sub" id="sig-status-sub">fill in checklist below</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <!-- CHECKLIST -->
+    <div class="card">
+      <div class="card-title">Entry signal checklist</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">All conditions should be met before entering. Tick each as you verify it.</div>
+
+      <!-- Condition 1: TradingView Alert -->
+      <div class="chk-block" id="chk1-block">
+        <div class="chk-row">
+          <input type="checkbox" id="chk1" onchange="evalChecklist()">
+          <label for="chk1" class="chk-label">
+            <span class="chk-title">TradingView alert fired — ES down ≥ 30 pts from day high</span>
+            <span class="chk-desc">Alert triggered on 15-min ES1! chart. Tick when you receive the notification.</span>
+          </label>
+        </div>
+        <div class="chk-inputs">
+          <div><span class="chk-input-label">ES day high</span><input type="number" id="c1-open" placeholder="e.g. 7510" oninput="calcEsDrop()"></div>
+          <div><span class="chk-input-label">ES current</span><input type="number" id="c1-current" placeholder="e.g. 7475" oninput="calcEsDrop()"></div>
+          <div id="c1-result" style="font-size:11px;color:var(--text3);padding-top:4px"></div>
+        </div>
+      </div>
+
+      <div class="chk-divider"></div>
+
+      <!-- Condition 2: VIX check -->
+      <div class="chk-block" id="chk2-block">
+        <div class="chk-row">
+          <input type="checkbox" id="chk2" onchange="evalChecklist()">
+          <label for="chk2" class="chk-label">
+            <span class="chk-title">VIX ≥ 16 and rising on the day</span>
+            <span class="chk-desc">Check TradingView VIX chart after alert fires. Below 16 = premium too thin. Prefer ≥ 18.</span>
+          </label>
+        </div>
+        <div class="chk-inputs">
+          <div><span class="chk-input-label">VIX current</span><input type="number" id="c2-vix" placeholder="e.g. 18.5" step="0.1" oninput="calcVixCheck()"></div>
+          <div><span class="chk-input-label">VIX day open</span><input type="number" id="c2-vixopen" placeholder="e.g. 16.2" step="0.1" oninput="calcVixCheck()"></div>
+          <div id="c2-result" style="font-size:11px;padding-top:4px"></div>
+        </div>
+      </div>
+
+      <div class="chk-divider"></div>
+
+      <!-- Condition 3: Credit in range -->
+      <div class="chk-block" id="chk3-block">
+        <div class="chk-row">
+          <input type="checkbox" id="chk3" onchange="evalChecklist()">
+          <label for="chk3" class="chk-label">
+            <span class="chk-title">IBKR spread credit $10.00–$12.00</span>
+            <span class="chk-desc">Check watchlist spreads in IBKR. Credit encodes both VIX level and strike distance — if it's not there, don't force it.</span>
+          </label>
+        </div>
+        <div class="chk-inputs">
+          <div><span class="chk-input-label">Available credit ($)</span><input type="number" id="c3-credit" placeholder="e.g. 10.50" step="0.25" oninput="calcCredit()"></div>
+          <div id="c3-result" style="font-size:11px;padding-top:4px"></div>
+        </div>
+      </div>
+
+      <div class="chk-divider"></div>
+
+      <!-- Condition 4: Strike distance -->
+      <div class="chk-block" id="chk4-block">
+        <div class="chk-row">
+          <input type="checkbox" id="chk4" onchange="evalChecklist()">
+          <label for="chk4" class="chk-label">
+            <span class="chk-title">Short strike ≥ 7% OTM from current SPX</span>
+            <span class="chk-desc">Minimum safety buffer. Prefer 8–9% at lower DTE. SPX rarely drops &gt;10% in any 90-day window.</span>
+          </label>
+        </div>
+        <div class="chk-inputs">
+          <div><span class="chk-input-label">Short strike</span><input type="number" id="c4-strike" placeholder="e.g. 6675" oninput="calcOTM()"></div>
+          <div id="c4-result" style="font-size:11px;padding-top:4px"></div>
+        </div>
+      </div>
+
+      <div class="chk-divider"></div>
+
+      <!-- Condition 5: DTE -->
+      <div class="chk-block" id="chk5-block">
+        <div class="chk-row">
+          <input type="checkbox" id="chk5" onchange="evalChecklist()">
+          <label for="chk5" class="chk-label">
+            <span class="chk-title">DTE 60–180 days, near month-end expiry</span>
+            <span class="chk-desc">Prefer 90–150d for maximum safety buffer and comfortable roll window. Always target end-of-month expiry dates.</span>
+          </label>
+        </div>
+        <div class="chk-inputs">
+          <div><span class="chk-input-label">DTE</span><input type="number" id="c5-dte" placeholder="e.g. 90" oninput="calcDTE()"></div>
+          <div id="c5-result" style="font-size:11px;padding-top:4px"></div>
+        </div>
+      </div>
+
+      <div class="chk-divider"></div>
+
+      <!-- Condition 6: No macro event -->
+      <div class="chk-block" id="chk6-block">
+        <div class="chk-row">
+          <input type="checkbox" id="chk6" onchange="evalChecklist()">
+          <label for="chk6" class="chk-label">
+            <span class="chk-title">No major macro event in next 48h</span>
+            <span class="chk-desc">FOMC, CPI, NFP, earnings season peak — avoid entering just before binary events that could gap ES significantly.</span>
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-top:14px">
+        <button class="primary" onclick="resetChecklist()" style="width:auto;padding:6px 16px;font-size:11px">Reset checklist</button>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Signal output + spread builder -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- GO / NO-GO -->
+      <div class="card" id="signal-output-card">
+        <div class="card-title">Signal output</div>
+        <div id="signal-output">
+          <div style="font-size:13px;color:var(--text3);text-align:center;padding:20px 0">Complete the checklist to see signal</div>
+        </div>
+      </div>
+
+      <!-- SPREAD BUILDER -->
+      <div class="card">
+        <div class="card-title">Spread builder</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Based on current SPX and your inputs — suggested strikes for this entry.</div>
+        <div style="display:flex;flex-direction:column;gap:6px" id="spread-builder"></div>
+        <div style="margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:6px">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Minimum credit for 30% target</div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap">
+            <div><div style="font-size:11px;color:var(--text3)">at 60d DTE</div><div style="font-size:15px;font-weight:600;color:var(--blue)" id="sb-cr60">$4.93</div></div>
+            <div><div style="font-size:11px;color:var(--text3)">at 90d DTE</div><div style="font-size:15px;font-weight:600;color:var(--blue)" id="sb-cr90">$7.40</div></div>
+            <div><div style="font-size:11px;color:var(--text3)">at 120d DTE</div><div style="font-size:15px;font-weight:600;color:var(--blue)" id="sb-cr120">$9.86</div></div>
+            <div><div style="font-size:11px;color:var(--text3)">at 150d DTE</div><div style="font-size:15px;font-weight:600;color:var(--blue)" id="sb-cr150">$12.33</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NOTES -->
+      <div class="card">
+        <div class="card-title">Session notes</div>
+        <textarea id="session-notes" placeholder="e.g. 23 Jun — entered C0043 and C0044 on VIX spike to 19.1, SPX dropped 47pts from open. Both spreads at $10.50 credit range..." style="width:100%;height:90px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:5px;color:var(--text);padding:8px 10px;font-size:12px;font-family:inherit;resize:vertical;line-height:1.5"></textarea>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px">Notes clear on page refresh — copy to your trade log if needed</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- MACRO CALENDAR TAB -->
+<div id="tab-macro" class="tab">
+
+  <!-- Header bar -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div>
+      <div style="font-size:15px;font-weight:500" id="macro-date-title">Macro calendar</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px">Key events affecting ES/SPX · Auto-loaded on tab open · Updated daily</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span style="font-size:11px;color:var(--text3)" id="macro-last-updated"></span>
+      <button class="refresh-btn" id="macro-refresh-btn" onclick="loadMacro(true)">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Strategy stance banner -->
+  <div id="macro-stance-wrap" style="margin-bottom:14px"></div>
+
+  <div class="grid2">
+    <!-- LEFT: Event table -->
+    <div>
+      <div class="card" style="padding:12px 14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="card-title" style="margin-bottom:0">Today & next 48h</div>
+          <div style="display:flex;gap:10px;font-size:10px;color:var(--text3)">
+            <span><span class="impact-dot dot-high" style="display:inline-block;margin-right:3px"></span>High</span>
+            <span><span class="impact-dot dot-med" style="display:inline-block;margin-right:3px"></span>Medium</span>
+            <span><span class="impact-dot dot-low" style="display:inline-block;margin-right:3px"></span>Low</span>
+          </div>
+        </div>
+        <div class="macro-header">
+          <span>Date/Time</span><span></span><span>Event</span><span>Forecast</span><span>Previous</span><span>Impact</span>
+        </div>
+        <div id="macro-events-list">
+          <!-- skeleton loader -->
+          <div style="padding:10px 0">
+            <div class="macro-skeleton" style="width:60%"></div>
+            <div class="macro-skeleton" style="width:80%"></div>
+            <div class="macro-skeleton" style="width:50%"></div>
+            <div class="macro-skeleton" style="width:70%"></div>
+            <div class="macro-skeleton" style="width:65%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upcoming high-impact events next 2 weeks -->
+      <div class="card">
+        <div class="card-title">High-impact events — next 14 days</div>
+        <div id="macro-upcoming" style="font-size:12px;color:var(--text2)">
+          <div class="macro-skeleton" style="width:70%"></div>
+          <div class="macro-skeleton" style="width:55%"></div>
+          <div class="macro-skeleton" style="width:80%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Commentary -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card">
+        <div class="card-title">Strategy commentary</div>
+        <div id="macro-commentary">
+          <div class="macro-skeleton" style="width:90%"></div>
+          <div class="macro-skeleton" style="width:75%"></div>
+          <div class="macro-skeleton" style="width:85%"></div>
+          <div class="macro-skeleton" style="width:60%"></div>
+          <div class="macro-skeleton" style="width:80%"></div>
+          <div class="macro-skeleton" style="width:70%"></div>
+        </div>
+      </div>
+
+      <!-- Key levels to watch -->
+      <div class="card">
+        <div class="card-title">Key levels & context</div>
+        <div id="macro-levels">
+          <div class="macro-skeleton" style="width:65%"></div>
+          <div class="macro-skeleton" style="width:75%"></div>
+          <div class="macro-skeleton" style="width:55%"></div>
+        </div>
+      </div>
+
+      <!-- VIX context -->
+      <div class="card">
+        <div class="card-title">VIX context for entry decisions</div>
+        <div id="macro-vix-context">
+          <div class="macro-skeleton" style="width:80%"></div>
+          <div class="macro-skeleton" style="width:65%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .dash -->
+
+<script>
+const MARGIN=10000, TARGET=0.30, RF=0.0475, SP500=0.10, ACCT_TARGET=0.20;
+const REALIZED_PNL=7668.53;
+const YTD_DAYS=176; // approx days traded so far this year
+
+const trades=[
+  {id:'C0001',pnl:103.45,days:1},{id:'R0001',pnl:-43.44,days:40.2},
+  {id:'C0004',pnl:93.45,days:1},{id:'C0005',pnl:158.31,days:12.96},
+  {id:'C0006',pnl:113.37,days:1},{id:'C0007',pnl:103.57,days:1},
+  {id:'C0008',pnl:223.57,days:11.29},{id:'C0009',pnl:903.59,days:54.37},
+  {id:'C0010',pnl:893.50,days:38.44},{id:'C0011',pnl:203.30,days:7.05},
+  {id:'C0012',pnl:143.44,days:20.15},{id:'C0013',pnl:103.43,days:1},
+  {id:'C0014',pnl:103.43,days:1},{id:'C0015',pnl:143.44,days:2.20},
+  {id:'C0016',pnl:173.44,days:1},{id:'C0017',pnl:103.43,days:1},
+  {id:'C0018',pnl:-5.87,days:12.50},{id:'C0019',pnl:164.13,days:12.48},
+  {id:'C0020',pnl:123.44,days:1.02},{id:'C0021',pnl:108.44,days:0.97},
+  {id:'C0022',pnl:103.43,days:1},{id:'R0002',pnl:-174.68,days:53},
+  {id:'C0024',pnl:493.44,days:45.94},{id:'C0025',pnl:398.44,days:45.94},
+  {id:'C0026',pnl:343.44,days:45.88},{id:'C0027',pnl:113.44,days:1},
+  {id:'C0028',pnl:228.44,days:4.03},{id:'C0031',pnl:198.44,days:0.88},
+  {id:'C0032',pnl:713.44,days:16.81},{id:'C0033',pnl:103.44,days:1},
+  {id:'C0034',pnl:133.44,days:10},{id:'C0035',pnl:138.16,days:2.85},
+  {id:'C0036',pnl:118.44,days:3.59},{id:'C0037',pnl:123.16,days:2.17},
+  {id:'C0038',pnl:103.44,days:3.03},{id:'C0039',pnl:103.44,days:3.04},
+  {id:'C0040',pnl:123.44,days:2.17},{id:'C0041',pnl:193.44,days:2.74},
+  {id:'C0042',pnl:93.44,days:1},
+  {id:'C0043',pnl:103.44,days:1}
+];
+
+// CORRECTED open trades from IBKR screenshot — entry 23 Jun 2026
+let openTrades=[
+  {id:'C0044',expiry:'30NOV26',short:6550,long:6450,credit:10.50,comm:3.28,dte:158,entryDate:'2026-06-23',curDebit:10.10},
+  {id:'C0045',expiry:'30OCT26',short:6675,long:6575,credit:11.05,comm:3.28,dte:127,entryDate:'2026-06-25',curDebit:10.20}
+];
+
+function today(){
+  return new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+}
+function daysHeld(d){
+  return Math.max(1,Math.round((new Date()-new Date(d))/86400000));
+}
+function targetPnl(credit,comm,dh){
+  return Math.max(TARGET*(dh/365)*MARGIN, 50);
+}
+function targetDebit(credit,comm,dh){
+  const net=(credit*100)-comm;
+  return Math.max(0,(net-targetPnl(credit,comm,dh))/100);
+}
+function exitCurve(credit,comm,maxDays){
+  const pts=[];
+  for(let d=1;d<=maxDays;d++){
+    pts.push({x:d,y:parseFloat(targetDebit(credit,comm,d).toFixed(2))});
+  }
+  return pts;
+}
+
+function getRegime(vix){
+  if(vix<15)return{label:'Low vol',sub:'VIX < 15',action:'Enter freely · DTE 45–90',color:'#4ade80'};
+  if(vix<18)return{label:'Normal',sub:'VIX 15–18',action:'Enter on red swings · DTE 60–120',color:'#38bdf8'};
+  if(vix<25)return{label:'Elevated',sub:'VIX 18–25',action:'Wait for VIX peak · DTE 90–150',color:'#facc15'};
+  return{label:'High vol',sub:'VIX > 25',action:'Avoid entry · manage open positions',color:'#f87171'};
+}
+
+function onMarketUpdate(){
+  const vix = parseFloat(document.getElementById('inp-vix').value)||17.7;
+  const r = getRegime(vix);
+  const rv = document.getElementById('regime-val');
+  const rs = document.getElementById('regime-sub');
+  if(rv){ rv.style.color=r.color; rv.textContent=r.label+' — '+r.action; }
+  if(rs) rs.textContent = r.sub;
+  try{ renderEntryConditions(); }catch(e){}
+  try{ syncSignalTab(); }catch(e){}
+}
+
+function renderAccountBar(){
+  const acct=parseFloat(document.getElementById('inp-account').value)||100000;
+  const deployed=openTrades.length*MARGIN;
+  const utilPct=(deployed/acct*100).toFixed(1);
+  const acctReturn=(REALIZED_PNL/acct*100).toFixed(1);
+  const prorated20=ACCT_TARGET*(YTD_DAYS/365)*acct;
+  const pctOf20=Math.min(100,(REALIZED_PNL/prorated20*100)).toFixed(0);
+  const pctOfSP=Math.min(100,(REALIZED_PNL/(SP500*(YTD_DAYS/365)*acct)*100)).toFixed(0);
+
+  document.getElementById('ab-deployed').textContent='$'+deployed.toLocaleString();
+  document.getElementById('ab-utilization').textContent=utilPct+'% of account';
+  document.getElementById('ab-acct-return').textContent=acctReturn+'%';
+  document.getElementById('ab-acct-return').style.color=parseFloat(acctReturn)>=(ACCT_TARGET*YTD_DAYS/365*100)?'#4ade80':'#38bdf8';
+  document.getElementById('ab-acct-pct').textContent=pctOf20+'%';
+  document.getElementById('ab-acct-bar').style.width=pctOf20+'%';
+  document.getElementById('ab-sp-pct').textContent=pctOfSP+'%';
+  document.getElementById('ab-sp-bar').style.width=pctOfSP+'%';
+
+  const remaining=prorated20-REALIZED_PNL;
+  document.getElementById('ab-pace').textContent=
+    remaining>0?`$${Math.round(remaining).toLocaleString()} needed for prorated 20% target`:'✓ Prorated 20% target achieved';
+
+  const spExcess=REALIZED_PNL-(SP500*(YTD_DAYS/365)*acct);
+  const el=document.getElementById('h-sp-excess');
+  if(el) el.textContent=(spExcess>=0?'+':'')+`$${Math.round(spExcess).toLocaleString()}`;
+}
+
+function showTab(name,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='open'){renderOpenTrades();renderExitCurve();try{populateCloseSelect();}catch(e){}}
+  if(name==='history')renderHistory();
+  if(name==='entry')renderEntryConditions();
+  if(name==='signal'){syncSignalTab();renderSpreadBuilder();renderLog();}
+  if(name==='macro'){loadMacro();}
+}
+
+function renderOpenTrades(){
+  let html='';
+  openTrades.forEach((t,i)=>{
+    const dh=daysHeld(t.entryDate);
+    const td=targetDebit(t.credit,t.comm,dh).toFixed(2);
+    const net=(t.credit*100)-t.comm;
+    const curPnl=t.curDebit!==null?(net-t.curDebit*100-t.comm):null;
+    const tgtPnl=targetPnl(t.credit,t.comm,dh);
+    const pct=curPnl!==null?Math.min(100,Math.max(0,(curPnl/tgtPnl)*100)):0;
+    const fillColor=pct>=100?'#4ade80':pct>60?'#facc15':'#38bdf8';
+    const badge=curPnl===null
+      ?'<span class="badge badge-gray">Enter debit</span>'
+      :curPnl>=tgtPnl?'<span class="badge badge-green">Exit now ✓</span>'
+      :pct>60?'<span class="badge badge-yellow">Near target</span>'
+      :'<span class="badge badge-blue">Hold</span>';
+    html+=`<div class="trade-row">
+      <span style="font-weight:600;color:#38bdf8">${t.id}</span>
+      <div>
+        <div style="font-size:12px;font-weight:500">${t.expiry} ${t.short}/${t.long}</div>
+        <div style="font-size:10px;color:#64748b">Credit $${t.credit} · DTE ${t.dte} · entry ${t.entryDate}</div>
+        <div style="font-size:10px;color:#64748b">${dh}d held · target P&L $${Math.round(tgtPnl)}</div>
+        ${curPnl!==null?`<div class="pbar"><div class="pbar-fill" style="width:${pct.toFixed(0)}%;background:${fillColor}"></div></div>`:''}
+      </div>
+      <span style="color:#94a3b8">${dh}d</span>
+      <span><input type="number" step="0.1" placeholder="—" value="${t.curDebit!==null?t.curDebit:''}" 
+        onchange="openTrades[${i}].curDebit=parseFloat(this.value)||null;renderOpenTrades();renderExitCurve()" 
+        style="width:80px;background:#1e2433;border:0.5px solid #334155;border-radius:5px;color:#f1f5f9;padding:5px 8px;font-size:13px"></span>
+      <span style="color:#38bdf8;font-weight:600">$${td}</span>
+      <div>${badge}${curPnl!==null?`<div style="font-size:10px;color:${curPnl>=0?'#4ade80':'#f87171'};margin-top:4px">${curPnl>=0?'+':''}$${curPnl.toFixed(0)} · ${pct.toFixed(0)}%</div>`:''}</div>
+    </div>`;
+  });
+  document.getElementById('open-trades-list').innerHTML=html;
+}
+
+function renderExitCurve(){
+  if(window._cExitCurve){window._cExitCurve.destroy();}
+  const maxDays=180;
+  const labels=Array.from({length:maxDays},(_,i)=>i+1);
+  const gOpts={color:'rgba(42,51,71,0.5)'};
+  const tOpts={color:'#64748b'};
+
+  const datasets=openTrades.map((t,idx)=>{
+    const colors=['#38bdf8','#a78bfa'];
+    const curve=exitCurve(t.credit,t.comm,maxDays);
+    const dh=daysHeld(t.entryDate);
+    const curTd=t.curDebit;
+    return {
+      label:`${t.id} target debit`,
+      data:curve.map(p=>p.y),
+      borderColor:colors[idx],
+      backgroundColor:'transparent',
+      borderWidth:2,
+      tension:0.3,
+      pointRadius:0,
+      // current position marker
+      _trade:t,
+      _dh:dh
+    };
+  });
+
+  // Add current position scatter points
+  const scatterData=openTrades.map(t=>{
+    const dh=daysHeld(t.entryDate);
+    return {x:dh, y:t.curDebit!==null?t.curDebit:null};
+  }).filter(p=>p.y!==null);
+
+  if(scatterData.length){
+    datasets.push({
+      label:'Current debit',
+      data:Array.from({length:maxDays},(_,i)=>scatterData.find(p=>p.x===i+1)?scatterData.find(p=>p.x===i+1).y:null),
+      borderColor:'#f87171',
+      backgroundColor:'#f87171',
+      borderWidth:0,
+      pointRadius:6,
+      pointStyle:'circle',
+      type:'scatter',
+      showLine:false
+    });
+  }
+
+  // Shade "hold zone" - area below the curve
+  window._cExitCurve=new Chart(document.getElementById('c-exit-curve').getContext('2d'),{
+    type:'line',
+    data:{labels, datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label:c=>`${c.dataset.label}: $${c.raw}`
+          }
+        }
+      },
+      scales:{
+        x:{
+          title:{display:true,text:'Days held',color:'#64748b',font:{size:10}},
+          ticks:{...tOpts,maxTicksLimit:10},
+          grid:gOpts
+        },
+        y:{
+          title:{display:true,text:'Target debit to close ($)',color:'#64748b',font:{size:10}},
+          ticks:{...tOpts,callback:v=>`$${v}`},
+          grid:gOpts
+        }
+      }
+    }
+  });
+}
+
+function renderHistory(){
+  if(window._cBars){window._cBars.destroy();}
+  const gOpts={color:'rgba(42,51,71,0.5)'};
+  const tOpts={color:'#64748b'};
+  window._cBars=new Chart(document.getElementById('c-bars').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:trades.map(t=>t.id),
+      datasets:[{label:'P&L',data:trades.map(t=>Math.round(t.pnl)),
+        backgroundColor:trades.map(t=>t.pnl>=0?'rgba(74,222,128,0.75)':'rgba(248,113,113,0.75)'),
+        borderWidth:0}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`$${c.raw}`}}},
+      scales:{x:{ticks:{...tOpts,font:{size:9},maxRotation:45,autoSkip:true},grid:gOpts},
+              y:{ticks:{...tOpts,callback:v=>`$${v}`},grid:gOpts}}
+    }
+  });
+
+  const bands={'1-day win':0,'$50–150':0,'$150–300':0,'$300+':0,'Near-BE':0,'Loss':0};
+  const bc={'1-day win':'#38bdf8','$50–150':'#4ade80','$150–300':'#22c55e','$300+':'#16a34a','Near-BE':'#64748b','Loss':'#f87171'};
+  trades.forEach(t=>{
+    if(t.pnl<-50)bands['Loss']++;
+    else if(t.pnl<0)bands['Near-BE']++;
+    else if(t.days<=1)bands['1-day win']++;
+    else if(t.pnl<150)bands['$50–150']++;
+    else if(t.pnl<300)bands['$150–300']++;
+    else bands['$300+']++;
+  });
+  document.getElementById('perf-bands').innerHTML=Object.entries(bands).map(([k,v])=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid #2a3347">
+      <span style="width:8px;height:8px;border-radius:2px;background:${bc[k]};flex-shrink:0"></span>
+      <span style="flex:1;font-size:12px;color:#94a3b8">${k}</span>
+      <span style="font-weight:600">${v}</span>
+      <span style="font-size:10px;color:#64748b;min-width:30px;text-align:right">${((v/trades.length)*100).toFixed(0)}%</span>
+    </div>`).join('');
+}
+
+function renderEntryConditions(){
+  const vix=parseFloat(document.getElementById('inp-vix').value)||17.7;
+  const spx=parseFloat(document.getElementById('inp-spx').value)||7430;
+  const dte=parseInt(document.getElementById('n-dte').value)||45;
+  const r=getRegime(vix);
+  const sug=Math.round(spx*0.925/25)*25;
+  const minCr=(TARGET*(dte/365)*MARGIN/100+0.07).toFixed(2);
+  document.getElementById('min-credit-val').textContent='$'+minCr;
+  document.getElementById('entry-conditions').innerHTML=`
+    <div class="entry-row"><span style="color:#64748b">VIX regime</span><span class="badge" style="background:${r.color}22;color:${r.color};border:0.5px solid ${r.color}44">${r.label}</span></div>
+    <div class="entry-row"><span style="color:#64748b">Action</span><span style="color:#94a3b8;font-size:11px">${r.action}</span></div>
+    <div class="entry-row"><span style="color:#64748b">~7.5% OTM strikes</span><span style="color:#38bdf8;font-weight:600">${sug} / ${sug-100}</span></div>
+    <div class="entry-row"><span style="color:#64748b">Distance to short strike</span><span style="color:#94a3b8">${(spx-sug).toFixed(0)} pts (${((spx-sug)/spx*100).toFixed(1)}%)</span></div>
+    <div class="entry-row"><span style="color:#64748b">Entry signal</span><span class="badge badge-yellow">Wait for red swing</span></div>`;
+}
+
+function calcRoll(){
+  const credit=parseFloat(document.getElementById('r-credit').value)||10;
+  const debit=parseFloat(document.getElementById('r-debit').value)||18;
+  const ns=parseInt(document.getElementById('r-ns').value)||6400;
+  const nd=parseInt(document.getElementById('r-nd').value)||90;
+  const spx=parseFloat(document.getElementById('inp-spx').value)||7430;
+  const rollCost=(debit-credit)*100;
+  const estNewCr=Math.max(2,(nd/150)*12*(1-Math.max(0,(ns-5800)/2000)));
+  const netAfter=estNewCr*100-rollCost;
+  const be=ns-Math.max(0,netAfter/100);
+  const worthwhile=netAfter>0&&be<spx*0.92;
+  document.getElementById('roll-out').innerHTML=`<div class="roll-out">
+    <div class="roll-row"><span>Cost to close original</span><span style="color:#f87171">−$${rollCost.toFixed(0)}</span></div>
+    <div class="roll-row"><span>New spread</span><span style="color:#38bdf8">${ns}/${ns-100} · ${nd}d DTE</span></div>
+    <div class="roll-row"><span>Est. new credit (indicative)</span><span>$${estNewCr.toFixed(2)}</span></div>
+    <div class="roll-row"><span>Net credit after roll</span><span style="color:${netAfter>=0?'#4ade80':'#f87171'}">${netAfter>=0?'+':''}$${netAfter.toFixed(0)}</span></div>
+    <div class="roll-row"><span>New breakeven</span><span>${be.toFixed(0)}</span></div>
+    <div class="roll-row"><span>Verdict</span><span class="badge ${worthwhile?'badge-green':'badge-yellow'}">${worthwhile?'Roll improves position ✓':'Review carefully'}</span></div>
+  </div>`;
+}
+
+function addTrade(){
+  const exp=document.getElementById('n-exp').value||'TBD';
+  const sh=parseFloat(document.getElementById('n-short').value)||6500;
+  const lo=parseFloat(document.getElementById('n-long').value)||6400;
+  const cr=parseFloat(document.getElementById('n-credit').value)||10;
+  const dte=parseInt(document.getElementById('n-dte').value)||45;
+  const comm=parseFloat(document.getElementById('n-comm').value)||3.28;
+  const id='C'+String(openTrades.length+43).padStart(4,'0');
+  openTrades.push({id,expiry:exp,short:sh,long:lo,credit:cr,comm,dte,entryDate:new Date().toISOString().slice(0,10),curDebit:null});
+  document.getElementById('add-msg').innerHTML=`<span style="color:#4ade80">✓ ${id} added — ${exp} ${sh}/${lo} · Credit $${cr}</span>`;
+  renderAccountBar();
+  setTimeout(()=>document.getElementById('add-msg').innerHTML='',4000);
+}
+
+function initCharts(){
+  const gOpts={color:'rgba(42,51,71,0.5)'};
+  const tOpts={color:'#64748b'};
+  let cum=0;
+  new Chart(document.getElementById('c-cum').getContext('2d'),{
+    type:'line',
+    data:{labels:trades.map(t=>t.id),datasets:[{
+      label:'Cumulative P&L',
+      data:trades.map(t=>{cum+=t.pnl;return Math.round(cum);}),
+      borderColor:'#4ade80',backgroundColor:'rgba(74,222,128,0.07)',
+      fill:true,tension:0.3,pointRadius:2,borderWidth:2,pointBackgroundColor:'#4ade80'
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`$${c.raw}`}}},
+      scales:{x:{ticks:{...tOpts,font:{size:9},autoSkip:true,maxTicksLimit:12},grid:gOpts},
+              y:{ticks:{...tOpts,callback:v=>`$${v}`},grid:gOpts}}
+    }
+  });
+
+  const monthly={'Nov 25':-1590,'Dec 25':2342,'Jan 26':203,'Feb 26':3061,'Mar 26':-2086,'Apr 26':3489,'May 26':302,'Jun 26':1844};
+  new Chart(document.getElementById('c-monthly').getContext('2d'),{
+    type:'bar',
+    data:{labels:Object.keys(monthly),datasets:[{
+      label:'P&L',data:Object.values(monthly),
+      backgroundColor:Object.values(monthly).map(v=>v>=0?'rgba(74,222,128,0.75)':'rgba(248,113,113,0.75)'),
+      borderWidth:0
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`$${c.raw}`}}},
+      scales:{x:{ticks:{...tOpts,font:{size:10},autoSkip:false,maxRotation:40},grid:gOpts},
+              y:{ticks:{...tOpts,callback:v=>`$${v}`},grid:gOpts}}
+    }
+  });
+
+  const buckets={'<$0':0,'$0–100':0,'$100–200':0,'$200–500':0,'$500+':0};
+  trades.forEach(t=>{
+    if(t.pnl<0)buckets['<$0']++;
+    else if(t.pnl<100)buckets['$0–100']++;
+    else if(t.pnl<200)buckets['$100–200']++;
+    else if(t.pnl<500)buckets['$200–500']++;
+    else buckets['$500+']++;
+  });
+  new Chart(document.getElementById('c-dist').getContext('2d'),{
+    type:'bar',
+    data:{labels:Object.keys(buckets),datasets:[{
+      label:'Trades',data:Object.values(buckets),
+      backgroundColor:['rgba(248,113,113,0.75)','rgba(100,116,139,0.6)','rgba(56,189,248,0.75)','rgba(167,139,250,0.75)','rgba(74,222,128,0.75)'],
+      borderWidth:0
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} trades`}}},
+      scales:{x:{ticks:{...tOpts,font:{size:11}},grid:gOpts},
+              y:{ticks:{...tOpts,stepSize:2},grid:gOpts}}
+    }
+  });
+}
+
+
+function calcEsDrop(){
+  const high=parseFloat(document.getElementById('c1-open').value);
+  const cur=parseFloat(document.getElementById('c1-current').value)||parseFloat(document.getElementById('inp-spx').value);
+  const el=document.getElementById('c1-result');
+  if(!high||!cur){el.textContent='Enter ES day high and current level';el.style.color='var(--text3)';return;}
+  const drop=high-cur;
+  const pass=drop>=30;
+  el.textContent=`ES down ${drop.toFixed(1)} pts from day high — ${pass?'✓ Alert threshold met (≥30pts)':'✗ Below 30pt threshold'}`;
+  el.style.color=pass?'var(--green)':'var(--red)';
+  document.getElementById('chk1').checked=pass;
+  evalChecklist();
+}
+
+function calcVixCheck(){
+  const vix=parseFloat(document.getElementById('c2-vix').value)||parseFloat(document.getElementById('inp-vix').value);
+  const vixOpen=parseFloat(document.getElementById('c2-vixopen').value);
+  const el=document.getElementById('c2-result');
+  if(!vix){el.textContent='Enter current VIX level';el.style.color='var(--text3)';return;}
+  const levelOk=vix>=16;
+  const pref=vix>=18;
+  const rising=vixOpen?vix>vixOpen:null;
+  let msg=`VIX ${vix} — ${levelOk?(pref?'✓ Strong (≥18)':'✓ Minimum met (16–18, prefer higher)'):'✗ Below 16 — premium too thin'}`;
+  if(vixOpen) msg+=` · ${rising?'↑ Rising':'↓ Falling'} from ${vixOpen}`;
+  el.textContent=msg;
+  el.style.color=levelOk?(pref?'var(--green)':'var(--yellow)'):'var(--red)';
+  // update top bar
+  const sv=document.getElementById('sig-vix');
+  if(sv){sv.textContent=vix;sv.style.color=pref?'var(--red)':vix>=16?'var(--yellow)':'var(--green)';}
+  document.getElementById('chk2').checked=levelOk&&(rising!==false);
+  evalChecklist();
+}
+
+function calcCredit(){
+  const cr=parseFloat(document.getElementById('c3-credit').value);
+  const el=document.getElementById('c3-result');
+  if(!cr){el.textContent='';return;}
+  const pass=cr>=10&&cr<=12;
+  const low=cr<10;
+  const high=cr>12;
+  const msg=pass
+    ?`✓ $${cr} in range — gross premium $${(cr*100).toFixed(0)} received`
+    :low?`✗ $${cr} — below $10 minimum. Premium too thin for the risk`
+    :`⚡ $${cr} — above $12. High premium — verify strikes aren't too close`;
+  el.textContent=msg;
+  el.style.color=pass?'var(--green)':low?'var(--red)':'var(--yellow)';
+  document.getElementById('chk3').checked=pass;
+  evalChecklist();
+}
+
+function calcOTM(){
+  const strike=parseFloat(document.getElementById('c4-strike').value);
+  const spx=parseFloat(document.getElementById('inp-spx').value)||7430;
+  const el=document.getElementById('c4-result');
+  if(!strike){el.textContent='';return;}
+  const dist=spx-strike;
+  const pct=(dist/spx*100).toFixed(1);
+  const pass=dist/spx>=0.07;
+  const pref=dist/spx>=0.08;
+  el.textContent=`${dist.toFixed(0)} pts OTM (${pct}%) — ${pass?(pref?'✓ Strong buffer (≥8%)':'✓ Minimum met — prefer 8%+ at lower DTE'):'✗ Too close — need ≥7% OTM from SPX'}`;
+  el.style.color=pass?(pref?'var(--green)':'var(--yellow)'):'var(--red)';
+  document.getElementById('chk4').checked=pass;
+  evalChecklist();
+}
+
+function calcDTE(){
+  const dte=parseInt(document.getElementById('c5-dte').value);
+  const el=document.getElementById('c5-result');
+  if(!dte){el.textContent='';return;}
+  const pass=dte>=60&&dte<=180;
+  const pref=dte>=90&&dte<=150;
+  el.textContent=`${dte}d DTE — ${pass?(pref?'✓ Optimal range (90–150d)':'✓ Acceptable — prefer 90–150d'):'✗ Outside 60–180d range'}`;
+  el.style.color=pass?(pref?'var(--green)':'var(--yellow)'):'var(--red)';
+  document.getElementById('chk5').checked=pass;
+  evalChecklist();
+}
+
+function syncSignalTab(){
+  const spx=parseFloat(document.getElementById('inp-spx').value)||0;
+  const vix=parseFloat(document.getElementById('inp-vix').value)||0;
+  const r=getRegime(vix);
+  if(document.getElementById('sig-spx')) {
+    document.getElementById('sig-spx').textContent=spx?spx.toLocaleString():'—';
+    document.getElementById('sig-vix').textContent=vix||'—';
+    document.getElementById('sig-vix').style.color=vix>=18?'#f87171':vix>=16?'#facc15':'#4ade80';
+    document.getElementById('sig-vix-regime').textContent=r.label;
+    // auto-fill c1-current and c3-current from market inputs
+    
+    
+    calcEsDrop(); calcVixSpike(); calcOTM(); renderSpreadBuilder();
+    checkVixLevel();
+  }
+}
+
+function calcSpxDrop(){
+  const open=parseFloat(document.getElementById('c1-open').value);
+  const cur=parseFloat(document.getElementById('c1-current').value)||parseFloat(document.getElementById('inp-spx').value);
+  const el=document.getElementById('c1-result');
+  if(!open||!cur){el.textContent='Enter day open/high to calculate';el.style.color='var(--text3)';return;}
+  const drop=open-cur;
+  const pct=(drop/open*100).toFixed(2);
+  const pts=drop.toFixed(0);
+  const pass=drop>=0.005*open&&drop>=30;
+  el.textContent=`Drop: ${pts} pts (${pct}%) — ${pass?'✓ Condition met':'✗ Need ≥30pts and ≥0.5%'}`;
+  el.style.color=pass?'var(--green)':'var(--red)';
+  document.getElementById('chk1').checked=pass;
+  evalChecklist();
+}
+
+function checkVixLevel(){
+  const vix=parseFloat(document.getElementById('inp-vix').value)||0;
+  const el=document.getElementById('c2-result');
+  if(!el)return;
+  const pass=vix>=16;
+  const pref=vix>=18;
+  el.textContent=`VIX ${vix} — ${pass?(pref?'✓ Strong signal (≥18)':'✓ Minimum met (16–18, prefer higher)'):'✗ Below minimum — premium too thin'}`;
+  el.style.color=pass?(pref?'var(--green)':'var(--yellow)'):'var(--red)';
+  document.getElementById('chk2').checked=pass;
+  evalChecklist();
+}
+
+function calcVixSpike(){
+  // Updated to use new input IDs (c2-vix, c2-vixopen) after checklist simplification
+  const openEl = document.getElementById('c2-vixopen');
+  const curEl = document.getElementById('c2-vix');
+  const vixEl = document.getElementById('inp-vix');
+  if(!openEl||!curEl) return;
+  const open = parseFloat(openEl.value);
+  const cur = parseFloat(curEl.value) || parseFloat(vixEl?.value||'0');
+  const el = document.getElementById('c2-result');
+  if(!el) return;
+  if(!open||!cur){el.textContent='Enter VIX day open and current level';el.style.color='var(--text3)';return;}
+  const spike = cur - open;
+  const sv = document.getElementById('sig-vix-chg-val');
+  if(sv){sv.textContent=(spike>=0?'+':'')+spike.toFixed(1)+' pts';sv.style.color=spike>=1.5?'var(--green)':'var(--text2)';}
+  // calcVixCheck handles the checkbox and result display
+  calcVixCheck();
+}
+
+function calcCredit(){
+  const cr=parseFloat(document.getElementById('c4-credit').value);
+  const el=document.getElementById('c4-result');
+  if(!cr){el.textContent='';return;}
+  const pass=cr>=10&&cr<=12;
+  const low=cr<10;
+  const high=cr>12;
+  const msg=pass?`✓ $${cr} — in target range. Gross premium $${(cr*100).toFixed(0)}`
+    :low?`✗ $${cr} — below $10 minimum. Premium too thin for risk taken`
+    :`⚡ $${cr} — above $12. Unusually high — check strikes aren't too close`;
+  el.textContent=msg;
+  el.style.color=pass?'var(--green)':low?'var(--red)':'var(--yellow)';
+  document.getElementById('chk4').checked=pass;
+  evalChecklist();
+}
+
+function calcOTM(){
+  const strike=parseFloat(document.getElementById('c5-strike').value);
+  const spx=parseFloat(document.getElementById('inp-spx').value)||7430;
+  const el=document.getElementById('c5-result');
+  if(!strike){el.textContent='';return;}
+  const dist=spx-strike;
+  const pct=(dist/spx*100).toFixed(1);
+  const pass=dist/spx>=0.07;
+  const pref=dist/spx>=0.08;
+  el.textContent=`${dist.toFixed(0)} pts OTM (${pct}%) — ${pass?(pref?'✓ Strong buffer (≥8%)':'✓ Minimum met — prefer 8%+ at low DTE'):'✗ Too close — need ≥7% OTM'}`;
+  el.style.color=pass?(pref?'var(--green)':'var(--yellow)'):'var(--red)';
+  document.getElementById('chk5').checked=pass;
+  evalChecklist();
+}
+
+function calcDTE(){
+  const dte=parseInt(document.getElementById('c6-dte').value);
+  const el=document.getElementById('c6-result');
+  if(!dte){el.textContent='';return;}
+  const pass=dte>=60&&dte<=180;
+  const pref=dte>=90&&dte<=150;
+  el.textContent=`${dte}d DTE — ${pass?(pref?'✓ Optimal range (90–150d)':'✓ Acceptable — prefer 90–150d'):'✗ Outside 60–180d range'}`;
+  el.style.color=pass?(pref?'var(--green)':'var(--yellow)'):'var(--red)';
+  document.getElementById('chk6').checked=pass;
+  evalChecklist();
+}
+
+function evalChecklist(){
+  const boxes=[1,2,3,4,5,6].map(i=>document.getElementById('chk'+i).checked);
+  const total=boxes.filter(Boolean).length;
+  const critical=boxes[0]&&boxes[1]&&boxes[2]; // Alert fired + VIX ok + credit ok
+  const all=boxes.every(Boolean);
+
+  const statusEl=document.getElementById('sig-status');
+  const subEl=document.getElementById('sig-status-sub');
+  const outEl=document.getElementById('signal-output');
+  if(!statusEl)return;
+
+  if(all){
+    statusEl.textContent='GO ✓';statusEl.style.color='var(--green)';
+    subEl.textContent='All 6 conditions met';
+  } else if(critical&&total>=5){
+    statusEl.textContent='LIKELY ⚡';statusEl.style.color='var(--yellow)';
+    subEl.textContent=`${total}/6 — review remaining`;
+  } else if(critical){
+    statusEl.textContent='PARTIAL';statusEl.style.color='var(--yellow)';
+    subEl.textContent=`${total}/6 — core conditions met`;
+  } else {
+    statusEl.textContent='NO-GO';statusEl.style.color='var(--red)';
+    subEl.textContent=`${total}/6 conditions met`;
+  }
+
+  const missing=[
+    !boxes[0]&&'TradingView alert not fired (ES drop < 30pts)',
+    !boxes[1]&&'VIX below 16 or not rising — premium too thin',
+    !boxes[2]&&'Credit not in $10–$12 range in IBKR',
+    !boxes[3]&&'Short strike too close — need ≥7% OTM from SPX',
+    !boxes[4]&&'DTE outside 60–180d window',
+    !boxes[5]&&'Macro event risk not cleared'
+  ].filter(Boolean);
+
+  // Exit limit calc
+  const cr=parseFloat(document.getElementById('c3-credit').value)||0;
+  const exitLmt=cr?(cr-1.07).toFixed(2):null;
+
+  if(all){
+    outEl.innerHTML=`
+      <div style="text-align:center;padding:12px 0">
+        <div style="font-size:32px;font-weight:700;color:var(--green);margin-bottom:6px">GO ✓</div>
+        <div style="font-size:13px;color:var(--text2)">All 6 conditions confirmed — enter in IBKR</div>
+      </div>
+      <div style="background:var(--greenbg);border:0.5px solid var(--green3);border-radius:6px;padding:10px 14px;margin-top:10px">
+        <div style="font-size:11px;color:var(--green3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Post-entry checklist</div>
+        <div style="font-size:12px;color:var(--green);line-height:1.8">
+          ① Place limit buy-to-close at <strong>$${exitLmt||'credit − $1.07'}</strong> immediately after fill<br>
+          ② Log entry in Signal Log below<br>
+          ③ Add trade in Open Trades tab<br>
+          ④ Set price alert in IBKR if spread hits 2× original debit
+        </div>
+      </div>`;
+  } else {
+    outEl.innerHTML=`
+      <div style="margin-bottom:12px">
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:6px">${total}/6 conditions met</div>
+        <div class="tbar"><div class="tbar-fill" style="width:${(total/6*100).toFixed(0)}%;background:${total>=5?'var(--yellow)':'var(--red)'}"></div></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Not yet met:</div>
+      ${missing.map(m=>`<div style="font-size:12px;color:var(--red);padding:5px 0;border-bottom:0.5px solid var(--border)">✗ ${m}</div>`).join('')}
+      <div style="font-size:11px;color:var(--text3);margin-top:12px;padding:8px 10px;background:var(--bg3);border-radius:5px">
+        ${critical?'⚡ Core conditions met — verify remaining before entering':'Wait: need ES alert + VIX ≥ 16 + credit in range'}
+      </div>`;
+  }
+
+  // Update ES drop display in top stats
+  const esHigh=parseFloat(document.getElementById('c1-open').value);
+  const esCur=parseFloat(document.getElementById('c1-current').value)||parseFloat(document.getElementById('inp-spx').value);
+  const dropEl=document.getElementById('sig-spx-pct');
+  if(dropEl&&esHigh&&esCur){
+    const drop=(esHigh-esCur).toFixed(1);
+    dropEl.textContent=`−${drop} pts`;
+    dropEl.style.color=parseFloat(drop)>=30?'var(--red)':'var(--text2)';
+  }
+}
+
+function renderSpreadBuilder(){
+  const spx=parseFloat(document.getElementById('inp-spx').value)||7430;
+  const el=document.getElementById('spread-builder');
+  if(!el)return;
+  const pcts=[0.075,0.08,0.085,0.09];
+  const labels=['7.5% OTM (minimum)','8.0% OTM (good)','8.5% OTM (preferred)','9.0% OTM (conservative)'];
+  const colors=['var(--yellow)','var(--blue)','var(--green)','var(--green)'];
+  el.innerHTML=pcts.map((p,i)=>{
+    const short=Math.round(spx*(1-p)/25)*25;
+    const lng=short-100;
+    const dist=(spx-short).toFixed(0);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px">
+      <span style="color:${colors[i]}">${labels[i]}</span>
+      <span style="font-weight:600;color:var(--text)">${short} / ${lng}</span>
+      <span style="color:var(--text3)">${dist} pts buffer</span>
+    </div>`;
+  }).join('');
+
+  // Min credit for various DTEs
+  const dtePairs=[[60,'sb-cr60'],[90,'sb-cr90'],[120,'sb-cr120'],[150,'sb-cr150']];
+  dtePairs.forEach(([d,id])=>{
+    const el2=document.getElementById(id);
+    if(el2) el2.textContent='$'+(0.30*(d/365)*10000/100+0.07).toFixed(2);
+  });
+}
+
+function resetChecklist(){
+  [1,2,3,4,5,6].forEach(i=>{document.getElementById('chk'+i).checked=false;});
+  ['c1-open','c1-current','c2-vix','c2-vixopen','c3-credit','c4-strike','c5-dte'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  ['c1-result','c2-result','c3-result','c4-result','c5-result'].forEach(id=>{
+    const el=document.getElementById(id);if(el){el.textContent='';el.style.color='var(--text3)';}
+  });
+  evalChecklist();
+}
+
+
+// ========== SIGNAL LOG ==========
+let signalLog = JSON.parse(localStorage.getItem('spx_signal_log') || '[]');
+
+function saveLog(){
+  try{ localStorage.setItem('spx_signal_log', JSON.stringify(signalLog)); } catch(e){}
+}
+
+function addLogRow(prefill){
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const timeStr = now.toTimeString().slice(0,5);
+  const spx = parseFloat(document.getElementById('inp-spx').value)||'';
+  const vix = parseFloat(document.getElementById('inp-vix').value)||'';
+  const dropPct = (()=>{
+    const o=parseFloat(document.getElementById('c1-open').value);
+    const c=parseFloat(document.getElementById('inp-spx').value);
+    return (o&&c)?((o-c)/o*100).toFixed(2):'';
+  })();
+  const vixSpike = (()=>{
+    const o=parseFloat(document.getElementById('c3-open').value);
+    const c=parseFloat(document.getElementById('inp-vix').value);
+    return (o&&c)?(c-o).toFixed(1):'';
+  })();
+
+  const entry = {
+    id: Date.now(),
+    date: prefill?.date || dateStr,
+    time: prefill?.time || timeStr,
+    spx: prefill?.spx || spx,
+    drop: prefill?.drop || dropPct,
+    vix: prefill?.vix || vix,
+    spike: prefill?.spike || vixSpike,
+    decision: prefill?.decision || 'entered',
+    credit: prefill?.credit || '',
+    dte: prefill?.dte || '',
+    notes: prefill?.notes || ''
+  };
+  signalLog.unshift(entry);
+  saveLog();
+  renderLog();
+}
+
+function updateLogField(id, field, value){
+  const entry = signalLog.find(e=>e.id===id);
+  if(entry){ entry[field]=value; saveLog(); updateLogStats(); }
+}
+
+function deleteLogRow(id){
+  signalLog = signalLog.filter(e=>e.id!==id);
+  saveLog();
+  renderLog();
+}
+
+function renderLog(){
+  const tbody = document.getElementById('log-body');
+  const empty = document.getElementById('log-empty');
+  if(!tbody) return;
+
+  if(signalLog.length===0){
+    tbody.innerHTML='';
+    if(empty) empty.style.display='block';
+    updateLogStats();
+    return;
+  }
+  if(empty) empty.style.display='none';
+
+  tbody.innerHTML = signalLog.map(e=>`
+    <tr>
+      <td><input class="log-input" value="${e.date}" onchange="updateLogField(${e.id},'date',this.value)" style="width:90px"></td>
+      <td><input class="log-input" value="${e.time}" onchange="updateLogField(${e.id},'time',this.value)" style="width:55px"></td>
+      <td><input class="log-input" type="number" value="${e.spx}" onchange="updateLogField(${e.id},'spx',this.value)" style="width:65px"></td>
+      <td><input class="log-input" type="number" value="${e.drop}" onchange="updateLogField(${e.id},'drop',this.value)" style="width:55px" placeholder="%"></td>
+      <td><input class="log-input" type="number" value="${e.vix}" onchange="updateLogField(${e.id},'vix',this.value)" style="width:50px"></td>
+      <td><input class="log-input" type="number" value="${e.spike}" onchange="updateLogField(${e.id},'spike',this.value)" style="width:55px" placeholder="pts"></td>
+      <td>
+        <select class="log-select" onchange="updateLogField(${e.id},'decision',this.value);renderLog()" style="width:85px">
+          <option value="entered" ${e.decision==='entered'?'selected':''}>✓ Entered</option>
+          <option value="passed" ${e.decision==='passed'?'selected':''}>— Passed</option>
+          <option value="watching" ${e.decision==='watching'?'selected':''}>👁 Watching</option>
+        </select>
+      </td>
+      <td><input class="log-input" type="number" value="${e.credit}" onchange="updateLogField(${e.id},'credit',this.value)" style="width:65px" placeholder="$" ${e.decision!=='entered'?'disabled':''}></td>
+      <td><input class="log-input" type="number" value="${e.dte}" onchange="updateLogField(${e.id},'dte',this.value)" style="width:50px" ${e.decision!=='entered'?'disabled':''}></td>
+      <td><input class="log-input" value="${e.notes}" onchange="updateLogField(${e.id},'notes',this.value)" placeholder="e.g. FOMC tomorrow, skipped" style="width:100%"></td>
+      <td><button onclick="deleteLogRow(${e.id})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 4px" title="Delete">✕</button></td>
+    </tr>
+  `).join('');
+
+  updateLogStats();
+}
+
+function updateLogStats(){
+  const total = signalLog.length;
+  const entered = signalLog.filter(e=>e.decision==='entered').length;
+  const passed = signalLog.filter(e=>e.decision==='passed').length;
+  const conv = total>0?(entered/total*100).toFixed(0)+'%':'—';
+  const vixVals = signalLog.map(e=>parseFloat(e.vix)).filter(v=>!isNaN(v));
+  const avgVix = vixVals.length>0?(vixVals.reduce((a,b)=>a+b,0)/vixVals.length).toFixed(1):'—';
+
+  const els = {
+    'ls-total': total||'0',
+    'ls-entered': entered||'0',
+    'ls-passed': passed||'0',
+    'ls-conv': conv,
+    'ls-vix': avgVix
+  };
+  Object.entries(els).forEach(([id,val])=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=val;
+  });
+}
+
+// Pre-populate with the 23 Jun entry signals that led to C0043 and C0044
+if(signalLog.length===0){
+  signalLog = [
+    {id:1719100000001, date:'23 Jun 2026', time:'08:56', spx:7430, drop:'0.54', vix:19.1, spike:'1.9', decision:'entered', credit:'11.50', dte:'127', notes:'C0043 — 6675/6575 30OCT26. VIX spiked on open, 3 red candles. Closed 24 Jun at $10.40 — P&L $103.44.'},
+    {id:1719100000002, date:'23 Jun 2026', time:'13:56', spx:7415, drop:'0.72', vix:19.4, spike:'2.2', decision:'entered', credit:'10.50', dte:'158', notes:'C0044 — 6550/6450 30NOV26. Continued weakness afternoon session. Still open.'},
+    {id:1719100000003, date:'25 Jun 2026', time:'', spx:7372, drop:'', vix:18.96, spike:'', decision:'entered', credit:'11.05', dte:'127', notes:'C0045 — 6675/6575 30OCT26. Re-entered same spread after C0043 closed at target.'}
+  ];
+  saveLog();
+}
+
+function exportLog(){
+  if(signalLog.length===0){alert('No signals to export.');return;}
+  const headers=['Date','Time','SPX','Drop %','VIX','VIX Spike','Decision','Credit $','DTE','Notes'];
+  const rows=signalLog.map(e=>[e.date,e.time,e.spx,e.drop,e.vix,e.spike,e.decision,e.credit,e.dte,e.notes]);
+  const csv=[headers,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='SPX_Signal_Log_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+
+// ========== MACRO CALENDAR ==========
+let macroLoaded = false;
+
+async function loadMacro(force=false){
+  if(macroLoaded && !force) return;
+  
+  const btn = document.getElementById('macro-refresh-btn');
+  if(btn){ btn.disabled=true; btn.textContent='Loading...'; }
+
+  const spx = document.getElementById('inp-spx').value || '7430';
+  const vix = document.getElementById('inp-vix').value || '17.7';
+  const today = new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('macro-date-title').textContent = `Macro calendar — ${today}`;
+
+  const prompt = `You are a macro analyst assistant for an options trader running a bull put spread strategy on SPX/ES.
+
+Today is ${today}. Current SPX: ${spx}. Current VIX: ${vix}.
+
+The trader sells put spreads on SPX (short put + long put, 100pt wide, $10K margin per trade). He targets entry when ES drops 30+ points from the day high, VIX is rising, and spread credit is $10-$12. He holds for days to weeks targeting $100 profit per trade. He is based in Dubai (UTC+4).
+
+Please provide:
+
+1. EVENTS_JSON: A JSON array of the most important macro events for today and next 48 hours that affect ES/SPX. Format exactly as:
+[{"datetime":"Wed 25 Jun 14:30 UTC","event":"US Durable Goods Orders","forecast":"0.5%","previous":"2.1%","impact":"high","note":"Brief note on relevance"},...]
+Impact must be "high", "medium" or "low". Include 6-10 events. Only real scheduled events.
+
+2. UPCOMING_JSON: A JSON array of high-impact events in the next 14 days (FOMC, CPI, NFP, GDP etc):
+[{"date":"Wed 30 Jul","event":"FOMC Rate Decision","impact":"high"},...]
+Include 4-8 events maximum.
+
+3. STANCE: One word only — either "favorable", "normal", "caution" or "avoid" — reflecting how today's macro backdrop affects new put spread entries.
+
+4. STANCE_REASON: One sentence explaining the stance.
+
+5. COMMENTARY: 4-6 sentences of strategy commentary specifically for this trader. Address: (a) whether today is good/bad for new entries, (b) any specific events to watch in Dubai time, (c) how current VIX ${vix} affects premium and entry quality, (d) any upcoming events that should delay or accelerate entries.
+
+6. KEY_LEVELS: 3-4 bullet points of key SPX/ES technical or macro levels to watch today.
+
+7. VIX_CONTEXT: 2-3 sentences on current VIX ${vix} level — is it favorable for entry, what premium can be expected, any VIX events or patterns to watch.
+
+Return ONLY valid JSON in this exact structure, no markdown, no explanation:
+{"events":[],"upcoming":[],"stance":"","stance_reason":"","commentary":"","key_levels":[],"vix_context":""}`;
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content.map(i=>i.text||'').join('');
+    
+    // Clean and parse JSON
+    const clean = text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(clean);
+    renderMacro(parsed, vix);
+    macroLoaded = true;
+
+    const now = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    const upd = document.getElementById('macro-last-updated');
+    if(upd) upd.textContent = `Updated ${now}`;
+
+  } catch(err) {
+    console.error('Macro load error:', err);
+    document.getElementById('macro-events-list').innerHTML = 
+      `<div style="color:var(--red);font-size:12px;padding:12px 0">Failed to load macro data. Check internet connection and try refreshing.</div>`;
+    document.getElementById('macro-commentary').innerHTML = 
+      `<div style="color:var(--text3);font-size:12px">Commentary unavailable — please refresh.</div>`;
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='↻ Refresh'; }
+  }
+}
+
+function renderMacro(data, vix){
+  // Stance banner
+  const stanceMap = {
+    favorable: {cls:'stance-favorable', icon:'✓', label:'Favorable for entry'},
+    normal:    {cls:'stance-normal',    icon:'→', label:'Normal conditions'},
+    caution:   {cls:'stance-caution',   icon:'⚠', label:'Caution — elevated risk'},
+    avoid:     {cls:'stance-avoid',     icon:'✗', label:'Avoid new entries today'}
+  };
+  const s = stanceMap[data.stance] || stanceMap['normal'];
+  document.getElementById('macro-stance-wrap').innerHTML = `
+    <div class="${s.cls} stance-badge">${s.icon} ${s.label}</div>
+    <div style="font-size:12px;color:var(--text2);margin-top:4px">${data.stance_reason||''}</div>`;
+
+  // Events table
+  const impactMap = {
+    high:   {cls:'impact-high',  dot:'dot-high',  label:'HIGH'},
+    medium: {cls:'impact-med',   dot:'dot-med',   label:'MED'},
+    low:    {cls:'impact-low',   dot:'dot-low',   label:'LOW'}
+  };
+  const evHtml = (data.events||[]).map(e=>{
+    const imp = impactMap[e.impact] || impactMap['low'];
+    return `<div class="macro-event">
+      <span style="color:var(--text3);font-size:11px">${e.datetime||''}</span>
+      <span><span class="impact-dot ${imp.dot}"></span></span>
+      <div>
+        <div style="font-weight:500;color:var(--text)">${e.event||''}</div>
+        ${e.note?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${e.note}</div>`:''}
+      </div>
+      <span style="color:var(--blue)">${e.forecast||'—'}</span>
+      <span style="color:var(--text3)">${e.previous||'—'}</span>
+      <span class="${imp.cls}">${imp.label}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('macro-events-list').innerHTML = evHtml || 
+    '<div style="color:var(--text3);font-size:12px;padding:10px 0">No major events in next 48h</div>';
+
+  // Upcoming
+  const upHtml = (data.upcoming||[]).map(e=>{
+    const imp = impactMap[e.impact] || impactMap['low'];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+      <span class="impact-dot ${imp.dot}"></span>
+      <span style="color:var(--text3);min-width:90px;font-size:11px">${e.date||''}</span>
+      <span style="color:var(--text2)">${e.event||''}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('macro-upcoming').innerHTML = upHtml ||
+    '<div style="color:var(--text3);font-size:12px">No major events in next 14 days</div>';
+
+  // Commentary
+  document.getElementById('macro-commentary').innerHTML = 
+    `<div class="commentary-block">${(data.commentary||'').replace(/\n/g,'<br>')}</div>`;
+
+  // Key levels
+  const levHtml = (data.key_levels||[]).map(l=>
+    `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px">
+      <span style="color:var(--blue);flex-shrink:0">→</span>
+      <span style="color:var(--text2)">${l}</span>
+    </div>`).join('');
+  document.getElementById('macro-levels').innerHTML = levHtml ||
+    '<div style="color:var(--text3);font-size:12px">No specific levels flagged</div>';
+
+  // VIX context
+  document.getElementById('macro-vix-context').innerHTML = 
+    `<div class="commentary-block">${data.vix_context||''}</div>`;
+}
+
+
+// ========== CLOSE TRADE ==========
+let pendingClose = null;
+
+// Auto-preview wired in init
+function populateCloseSelect(){
+  const sel = document.getElementById('close-cycle-select');
+  if(!sel) return;
+  if(openTrades.length===0){
+    sel.innerHTML='<option value="">No open trades</option>';
+    const preview = document.getElementById('close-preview');
+    if(preview) preview.innerHTML='<div style="font-size:11px;color:var(--text3);padding:8px 0">No open trades to close.</div>';
+    return;
+  }
+  sel.innerHTML = openTrades.map(t=>
+    `<option value="${t.id}">${t.id} — ${t.expiry} ${t.short}/${t.long} (credit $${t.credit})</option>`
+  ).join('');
+  const today = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const dateEl = document.getElementById('close-date');
+  if(dateEl && !dateEl.value) dateEl.value = today;
+  updateClosePreview();
+}
+
+function updateClosePreview(){
+  const sel = document.getElementById('close-cycle-select');
+  const debitEl = document.getElementById('close-debit');
+  const commEl = document.getElementById('close-comm');
+  const preview = document.getElementById('close-preview');
+  if(!sel||!debitEl||!commEl||!preview) return;
+
+  const trade = openTrades.find(t=>t.id===sel.value);
+  if(!trade){preview.innerHTML='';return;}
+
+  const debit = parseFloat(debitEl.value);
+  const closeComm = parseFloat(commEl.value)||3.28;
+  const dh = Math.max(1, daysHeld(trade.entryDate));
+  const entryNet = (trade.credit*100) - trade.comm;
+
+  if(!debit||isNaN(debit)){
+    preview.innerHTML=`<div style="font-size:11px;color:var(--text3);padding:8px 0">
+      ${trade.id} · ${trade.expiry} ${trade.short}/${trade.long} · Held ${dh} days · 
+      Entry credit $${trade.credit} · Entry net $${entryNet.toFixed(2)} — enter closing debit to see P&L preview
+    </div>`;
+    return;
+  }
+
+  const closeCost = (debit*100) + closeComm;
+  const netPnl = entryNet - closeCost;
+  const annReturn = (netPnl / MARGIN) * (365/Math.max(dh,1)) * 100;
+  const pnlColor = netPnl>=0?'var(--green)':'var(--red)';
+
+  preview.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px 12px;background:var(--bg3);border-radius:6px;font-size:12px">
+      <div><div style="color:var(--text3);font-size:10px;margin-bottom:3px">DAYS HELD</div><div style="font-weight:600">${dh}d</div></div>
+      <div><div style="color:var(--text3);font-size:10px;margin-bottom:3px">ENTRY NET</div><div style="font-weight:600">$${entryNet.toFixed(2)}</div></div>
+      <div><div style="color:var(--text3);font-size:10px;margin-bottom:3px">CLOSE COST</div><div style="font-weight:600">$${closeCost.toFixed(2)}</div></div>
+      <div><div style="color:var(--text3);font-size:10px;margin-bottom:3px">NET P&L</div><div style="font-weight:600;color:${pnlColor}">${netPnl>=0?'+':''}$${netPnl.toFixed(2)}</div></div>
+      <div><div style="color:var(--text3);font-size:10px;margin-bottom:3px">ANN. RETURN</div><div style="font-weight:600;color:${annReturn>=30?'var(--green)':annReturn>=0?'var(--yellow)':'var(--red)'}">${annReturn.toFixed(0)}%</div></div>
+    </div>`;
+}
+
+function closeTrade(){
+  const sel = document.getElementById('close-cycle-select');
+  const debitEl = document.getElementById('close-debit');
+  const dateEl = document.getElementById('close-date');
+  const commEl = document.getElementById('close-comm');
+  const reasonEl = document.getElementById('close-reason');
+  const closeComm = commEl ? parseFloat(commEl.value)||3.28 : 3.28;
+  const reason = reasonEl ? reasonEl.value : 'other';
+
+  if(!sel||!debitEl||!dateEl){return;}
+  const trade = openTrades.find(t=>t.id===sel.value);
+  if(!trade){alert('Please select a trade to close.');return;}
+
+  const debit = parseFloat(debitEl.value);
+  if(!debit||debit<=0){alert('Please enter the closing debit price from IBKR.');return;}
+
+  const dh = daysHeld(trade.entryDate);
+  const entryNet = (trade.credit*100) - trade.comm;
+  const closeCost = (debit*100) + closeComm;
+  const netPnl = entryNet - closeCost;
+  const annReturn = (netPnl/MARGIN)*(365/dh)*100;
+
+  pendingClose = {trade, debit, closeComm, dh, netPnl, annReturn, reason, closeDate: dateEl.value};
+
+  const pnlColor = netPnl>=0?'var(--green)':'var(--red)';
+  document.getElementById('close-confirm-text').innerHTML =
+    `Confirm close <strong>${trade.id}</strong> (${trade.expiry} ${trade.short}/${trade.long}) · 
+     Closing debit $${debit} · Net P&L <strong style="color:${pnlColor}">${netPnl>=0?'+':''}$${netPnl.toFixed(2)}</strong> · 
+     ${dh} days held · ${annReturn.toFixed(0)}% annualized`;
+  document.getElementById('close-confirm').style.display='block';
+}
+
+function confirmClose(){
+  if(!pendingClose) return;
+  const {trade, debit, dh, netPnl, annReturn, reason, closeDate} = pendingClose;
+
+  // Add to historical trades array
+  trades.push({
+    id: trade.id,
+    pnl: parseFloat(netPnl.toFixed(2)),
+    days: dh,
+    closed: closeDate,
+    reason: reason
+  });
+
+  // Remove from open trades
+  openTrades = openTrades.filter(t=>t.id!==trade.id);
+
+  // Update running totals in UI
+  const newTotal = trades.reduce((s,t)=>s+t.pnl,0);
+  const wins = trades.filter(t=>t.pnl>0).length;
+  const wr = (wins/trades.length*100).toFixed(1);
+  const avgPnl = Math.round(newTotal/trades.length);
+
+  // Update metric cards safely
+  const mTotal = document.getElementById('m-total');
+  if(mTotal) mTotal.textContent = '$'+Math.round(newTotal).toLocaleString();
+
+  // Update closed trades count
+  document.querySelectorAll('.metric-sub').forEach(el=>{
+    if(el.textContent && el.textContent.includes('closed trades'))
+      el.textContent = trades.length+' closed trades';
+  });
+
+  // Add to signal log automatically
+  if(typeof signalLog !== 'undefined'){
+    signalLog.unshift({
+      id: Date.now(),
+      date: closeDate,
+      time: new Date().toTimeString().slice(0,5),
+      spx: parseFloat(document.getElementById('inp-spx').value)||'',
+      drop:'', vix: parseFloat(document.getElementById('inp-vix').value)||'',
+      spike:'',
+      decision:'passed',
+      credit: debit,
+      dte:'',
+      notes:`CLOSED ${trade.id} — ${trade.expiry} ${trade.short}/${trade.long} · Debit $${debit} · P&L ${netPnl>=0?'+':''}$${netPnl.toFixed(2)} · ${reason}`
+    });
+    if(typeof saveLog==='function') saveLog();
+  }
+
+  // Reset form
+  pendingClose = null;
+  document.getElementById('close-debit').value='';
+  document.getElementById('close-preview').innerHTML='';
+  document.getElementById('close-confirm').style.display='none';
+
+  // Show success
+  const successMsg = document.createElement('div');
+  successMsg.style.cssText='position:fixed;top:20px;right:20px;background:#052e16;border:0.5px solid #166534;border-radius:8px;padding:12px 18px;color:#4ade80;font-size:13px;font-weight:500;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4)';
+  successMsg.innerHTML = `✓ ${trade.id} closed · P&L ${netPnl>=0?'+':''}$${netPnl.toFixed(2)} · Added to history`;
+  document.body.appendChild(successMsg);
+  setTimeout(()=>successMsg.remove(), 4000);
+
+  // Re-render
+  renderOpenTrades();
+  populateCloseSelect();
+  renderAccountBar();
+}
+
+function cancelClose(){
+  pendingClose = null;
+  document.getElementById('close-confirm').style.display='none';
+}
+
+
+// ========== LIVE MARKET DATA — Twelve Data ==========
+const TD_KEY = '908d3af3fc0a4c28ad2f8e51bb33787d';
+const TD_BASE = 'https://api.twelvedata.com';
+let liveDataInterval = null;
+let lastFetchTime = null;
+let fetchErrors = 0;
+
+// Symbols to fetch
+// SPX = ^SPX | VIX = ^VIX | ES = ES1! (front month)
+const SYMBOLS = ['SPX','VIX','ES1!']; // Twelve Data format
+
+async function fetchLiveData(){
+  const statusEl = document.getElementById('live-status');
+  try {
+    // Twelve Data symbol format: SPX, VIX, ES1! (futures)
+    // Fetch all three in one call using comma separation
+    const symbols = 'SPX,VIX,ES1!';
+    const url = `${TD_BASE}/price?symbol=${symbols}&apikey=${TD_KEY}&format=JSON`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    console.log('Twelve Data response:', JSON.stringify(data).slice(0,300));
+
+    let spx, vix, es;
+    let updated = 0;
+
+    // Multi-symbol response — each symbol is a top-level key
+    if(data['SPX'] && data['SPX'].price){
+      spx = parseFloat(data['SPX'].price);
+    }
+    if(data['VIX'] && data['VIX'].price){
+      vix = parseFloat(data['VIX'].price);
+    }
+    if(data['ES1!'] && data['ES1!'].price){
+      es = parseFloat(data['ES1!'].price);
+    }
+
+    // Single symbol fallback (if only one came back)
+    if(!spx && !vix && !es && data.price){
+      spx = parseFloat(data.price);
+    }
+
+    // Check for API error response
+    if(data.code && data.code !== 200){
+      throw new Error(data.message || 'API error '+data.code);
+    }
+    if(data.status === 'error'){
+      throw new Error(data.message || 'API error');
+    }
+
+    if(spx && !isNaN(spx)){
+      document.getElementById('inp-spx').value = spx.toFixed(2);
+      updated++;
+    }
+    if(vix && !isNaN(vix)){
+      document.getElementById('inp-vix').value = vix.toFixed(2);
+      updated++;
+    }
+    if(es && !isNaN(es)){
+      document.getElementById('inp-es').value = es.toFixed(2);
+      updated++;
+    }
+
+    if(updated > 0){
+      onMarketUpdate();
+      lastFetchTime = new Date();
+      fetchErrors = 0;
+      const t = lastFetchTime.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      if(statusEl){
+        statusEl.className='live-indicator';
+        statusEl.textContent=`Live · ${t} (${updated}/3 symbols)`;
+      }
+    } else {
+      // Got a response but no prices — market likely closed
+      fetchErrors++;
+      if(statusEl){
+        statusEl.className='live-indicator live-stale';
+        statusEl.textContent='Market closed · manual mode';
+      }
+    }
+
+  } catch(err) {
+    fetchErrors++;
+    console.warn('Live data fetch error:', err.message);
+    if(statusEl){
+      statusEl.className=fetchErrors<=3?'live-indicator live-stale':'live-indicator live-error';
+      statusEl.textContent=fetchErrors<=3?'Market closed · manual mode':'Feed error · check console';
+    }
+  }
+}
+
+async function fetchQuoteData(){
+  try{
+    // Fetch quote data for day high and open — used in signal tab
+    const url = `${TD_BASE}/quote?symbol=SPX,VIX&apikey=${TD_KEY}&format=JSON`;
+    const res = await fetch(url);
+    if(!res.ok) return;
+    const data = await res.json();
+    console.log('Quote response:', JSON.stringify(data).slice(0,300));
+
+    // Auto-fill ES day high in signal tab (only if user hasn't typed one)
+    const spxQuote = data['SPX'] || (data.symbol==='SPX'?data:null);
+    if(spxQuote && spxQuote.high){
+      const high = parseFloat(spxQuote.high);
+      const c1open = document.getElementById('c1-open');
+      if(c1open && !c1open.value && high && !isNaN(high)){
+        c1open.value = high.toFixed(2);
+        try{ calcEsDrop(); }catch(e){}
+      }
+    }
+
+    // Auto-fill VIX day open for spike calculation
+    const vixQuote = data['VIX'] || (data.symbol==='VIX'?data:null);
+    if(vixQuote && vixQuote.open){
+      const vixOpen = parseFloat(vixQuote.open);
+      const c2vixopen = document.getElementById('c2-vixopen');
+      if(c2vixopen && !c2vixopen.value && vixOpen && !isNaN(vixOpen)){
+        c2vixopen.value = vixOpen.toFixed(2);
+        try{ calcVixCheck(); }catch(e){}
+      }
+    }
+  } catch(err){
+    console.warn('Quote fetch:', err.message);
+  }
+}
+
+function startLiveData(){
+  // Initial fetch immediately
+  fetchLiveData();
+  // Then fetch quote data for opens/highs
+  setTimeout(fetchQuoteData, 1500);
+  // Refresh price every 60 seconds
+  liveDataInterval = setInterval(fetchLiveData, 60000);
+  // Refresh quote data every 5 minutes (less critical)
+  setInterval(fetchQuoteData, 300000);
+}
+
+function stopLiveData(){
+  if(liveDataInterval) clearInterval(liveDataInterval);
+  const statusEl = document.getElementById('live-status');
+  if(statusEl){ statusEl.className='live-indicator live-stale'; statusEl.textContent='Paused'; }
+}
+
+// Manual refresh button in ticker bar
+function manualRefresh(){
+  const statusEl = document.getElementById('live-status');
+  if(statusEl){ statusEl.textContent='Refreshing...'; }
+  fetchLiveData();
+  setTimeout(fetchQuoteData, 800);
+}
+
+
+// ========== PASSWORD GATE ==========
+const PWD_HASH = '989a56b5484a2bff3f812904778b5965e6f544fd5250bfcac57afc488eaf50f1';
+
+function sha256(str){
+  // Simple async SHA-256 using Web Crypto API
+  const buf = new TextEncoder().encode(str);
+  return crypto.subtle.digest('SHA-256', buf).then(b=>{
+    return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+  });
+}
+
+async function checkPassword(){
+  const input = document.getElementById('pwd-input');
+  const errorEl = document.getElementById('pwd-error');
+  const btn = document.querySelector('.pwd-btn');
+  if(!input) return;
+
+  btn.textContent = 'Checking...';
+  btn.disabled = true;
+
+  const hash = await sha256(input.value);
+  if(hash === PWD_HASH){
+    // Correct — store session and hide gate
+    sessionStorage.setItem('spx_auth', '1');
+    const gate = document.getElementById('pwd-gate');
+    gate.style.opacity='0';
+    gate.style.transition='opacity 0.3s';
+    setTimeout(()=>gate.remove(), 300);
+  } else {
+    errorEl.textContent = 'Incorrect password — please try again';
+    input.value = '';
+    input.focus();
+    btn.textContent = 'Unlock dashboard';
+    btn.disabled = false;
+    // Shake animation
+    input.style.borderColor='#f87171';
+    setTimeout(()=>input.style.borderColor='#334155', 1500);
+  }
+}
+
+function initPasswordGate(){
+  // If already authenticated this session, skip
+  if(sessionStorage.getItem('spx_auth')==='1'){
+    const gate = document.getElementById('pwd-gate');
+    if(gate) gate.remove();
+    return;
+  }
+  // Focus input
+  setTimeout(()=>{
+    const input = document.getElementById('pwd-input');
+    if(input) input.focus();
+  }, 100);
+}
+
+// Init
+document.getElementById('date-label').textContent=today();
+initCharts();
+renderOpenTrades();
+renderAccountBar();
+// Wire close trade preview — deferred to ensure DOM ready
+function initCloseTradePanel(){
+  const debitEl=document.getElementById('close-debit');
+  const selEl=document.getElementById('close-cycle-select');
+  const commEl=document.getElementById('close-comm');
+  if(debitEl) debitEl.addEventListener('input', updateClosePreview);
+  if(selEl) selEl.addEventListener('change', updateClosePreview);
+  if(commEl) commEl.addEventListener('input', updateClosePreview);
+  populateCloseSelect();
+}
+// Run after full page load
+if(document.readyState==='complete'){
+  initPasswordGate();
+  initCloseTradePanel();
+  startLiveData();
+} else {
+  window.addEventListener('load', ()=>{
+    initPasswordGate();
+    initCloseTradePanel();
+    startLiveData();
+  });
+}
+renderEntryConditions();
+onMarketUpdate();
+</script>
+</body>
+</html>
